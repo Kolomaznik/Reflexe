@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F3A5F">
+<title>Reflexe bloku</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --navy: #1F3A5F;
+    --gold: #C9A961;
+    --light-gold: #F5EFE0;
+    --bg: #FAF9F6;
+    --card: #FFFFFF;
+    --text: #2C2C2C;
+    --muted: #6B6B6B;
+    --border: #E5E2DA;
+    --red: #DC3545;
+    --amber: #FFC107;
+    --green: #28A745;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 16px 16px 80px;
+  }
+  header {
+    text-align: center;
+    padding: 16px 0 24px;
+    border-bottom: 2px solid var(--gold);
+    margin-bottom: 20px;
+  }
+  header h1 {
+    margin: 0 0 4px;
+    color: var(--navy);
+    font-size: 24px;
+    letter-spacing: 0.5px;
+  }
+  header .subtitle { color: var(--gold); font-style: italic; font-size: 15px; }
+  header .meta { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .question {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .q-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .q-num { color: var(--gold); font-weight: 700; font-size: 13px; letter-spacing: 1px; }
+  .q-title { color: var(--navy); font-weight: 700; font-size: 17px; flex: 1; }
+  .q-desc { color: var(--muted); font-size: 13px; margin-bottom: 12px; font-style: italic; }
+  textarea {
+    width: 100%;
+    min-height: 70px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit; font-size: 14px;
+    resize: vertical; background: #FCFBF7;
+  }
+  textarea:focus, input[type=number]:focus {
+    outline: none; border-color: var(--gold); background: #fff;
+  }
+  .scale-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .scale-label { color: var(--muted); font-size: 13px; min-width: 100px; }
+  .slider-wrap { flex: 1; min-width: 200px; position: relative; }
+  input[type=range] { width: 100%; accent-color: var(--gold); height: 36px; }
+  .slider-ticks {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted); margin-top: 0; padding: 0 2px;
+  }
+  .value-display {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 42px; height: 34px; padding: 0 10px;
+    background: var(--navy); color: #fff;
+    border-radius: 8px; font-weight: 700; font-size: 16px;
+  }
+  .value-display.low { background: var(--red); }
+  .value-display.mid { background: var(--amber); color: var(--navy); }
+  .value-display.high { background: var(--green); }
+  .percent-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .percent-row label { color: var(--muted); font-size: 13px; min-width: 160px; }
+  input[type=number] {
+    width: 80px; padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px; font: inherit; font-size: 14px;
+    background: #FCFBF7;
+  }
+  .unit { color: var(--muted); font-size: 13px; }
+  .note-label {
+    display: block; color: var(--muted); font-size: 11px;
+    margin: 10px 0 4px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  button {
+    background: var(--navy); color: #fff; border: none;
+    padding: 14px 32px; font-size: 16px; font-weight: 700;
+    border-radius: 10px; cursor: pointer; margin-top: 12px;
+    width: 100%; transition: background .15s;
+  }
+  button:active { background: #142740; }
+  button.gold { background: var(--gold); }
+  button.secondary { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
+  .actions { display: flex; flex-direction: column; gap: 10px; }
+  #result {
+    display: none;
+    background: var(--card);
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    padding: 18px;
+    margin-top: 20px;
+  }
+  #result h2 { color: var(--green); margin: 0 0 10px; font-size: 20px; }
+  #result p { margin: 0 0 12px; font-size: 14px; }
+  #result pre {
+    background: #F8F7F2;
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+    font-size: 12px; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 300px; overflow-y: auto;
+  }
+  .hint {
+    background: var(--light-gold);
+    border-left: 4px solid var(--gold);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .notif-banner {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap;
+  }
+  .notif-banner .status { flex: 1; color: var(--muted); }
+  .notif-banner button {
+    width: auto; padding: 8px 14px; font-size: 13px; margin: 0;
+  }
+  .copy-toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--navy); color: #fff;
+    padding: 12px 20px; border-radius: 24px;
+    font-size: 14px; font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: transform .3s;
+    z-index: 100;
+  }
+  .copy-toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>DENÍK REFLEXE</h1>
+  <div class="subtitle">Reflexe bloku <span id="block-time">10:00</span></div>
+  <div class="meta"><span id="block-date">—</span> · trvání cca 3 minuty</div>
+</header>
+
+<div id="notif-banner" class="notif-banner" style="display:none">
+  <span class="status" id="notif-status">🔔 Zapnout připomínky každé 2 hodiny?</span>
+  <button id="notif-btn" class="gold">Zapnout</button>
+</div>
+
+<div class="hint">
+  Odpovídej rychle a poctivě. Škály: <strong>1 = slabé, 10 = mistrovské</strong>.
+</div>
+
+<form id="reflexe-form">
+
+<div class="question">
+  <div class="q-header"><span class="q-num">1/8</span><span class="q-title">Aktivity v bloku</span></div>
+  <div class="q-desc">Co jsi za poslední 2 hodiny dělala?</div>
+  <textarea name="aktivity" placeholder="např. Psaní nabídky pro XY, 3× call, úprava EB21 materiálu…"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">2/8</span><span class="q-title">80/20 – Pareto</span></div>
+  <div class="q-desc">Dělala jsi těch 20 % činností, co generují 80 % výsledku?</div>
+  <div class="scale-row">
+    <span class="scale-label">Skóre 1–10:</span>
+    <div class="slider-wrap">
+      <input type="range" name="pareto_score" min="1" max="10" value="5" data-target="pareto_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="pareto_val">5</span>
+  </div>
+  <div class="percent-row">
+    <label>% přispění k cíli dne:</label>
+    <input type="number" name="pareto_percent" min="0" max="100" placeholder="0">
+    <span class="unit">%</span>
+  </div>
+  <label class="note-label">Poznámka</label>
+  <textarea name="pareto_note" placeholder="Volitelně"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">3/8</span><span class="q-title">Parkinsonův zákon</span></div>
+  <div class="q-desc">Šlo to rychleji? Byla jsi ve flow?</div>
+  <div class="scale-row">
+    <span class="scale-label">Skóre 1–10:</span>
+    <div class="slider-wrap">
+      <input type="range" name="parkinson_score" min="1" max="10" value="5" data-target="parkinson_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="parkinson_val">5</span>
+  </div>
+  <label class="note-label">Poznámka</label>
+  <textarea name="parkinson_note" placeholder="Volitelně"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">4/8</span><span class="q-title">Žrouti času</span></div>
+  <div class="q-desc">Jací žrouti se objevili?</div>
+  <textarea name="zrouti" placeholder="např. 20 min scroll Instagramu, 2× přerušila mě kolegyně…"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">5/8</span><span class="q-title">Posun k cílům + setup</span></div>
+  <div class="q-desc">Jak moc tě to posunulo? Udělala sis předem vědomé nastavení?</div>
+  <div class="scale-row">
+    <span class="scale-label">Posun (1–10):</span>
+    <div class="slider-wrap">
+      <input type="range" name="posun_score" min="1" max="10" value="5" data-target="posun_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="posun_val">5</span>
+  </div>
+  <div class="scale-row">
+    <span class="scale-label">Setup (1–10):</span>
+    <div class="slider-wrap">
+      <input type="range" name="setup_score" min="1" max="10" value="5" data-target="setup_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="setup_val">5</span>
+  </div>
+  <label class="note-label">Poznámka</label>
+  <textarea name="posun_note" placeholder="Volitelně"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">6/8</span><span class="q-title">Focus – jasný blok</span></div>
+  <div class="q-desc">Šla jsi v jednom bloku za jedním cílem?</div>
+  <div class="scale-row">
+    <span class="scale-label">Skóre 1–10:</span>
+    <div class="slider-wrap">
+      <input type="range" name="focus_score" min="1" max="10" value="5" data-target="focus_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="focus_val">5</span>
+  </div>
+  <label class="note-label">Poznámka</label>
+  <textarea name="focus_note" placeholder="Volitelně"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">7/8</span><span class="q-title">Vědomost vs autopilot</span></div>
+  <div class="q-desc">Jak moc jsi dělala vše vědomě a záměrně?</div>
+  <div class="scale-row">
+    <span class="scale-label">Skóre 1–10:</span>
+    <div class="slider-wrap">
+      <input type="range" name="vedomost_score" min="1" max="10" value="5" data-target="vedomost_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="vedomost_val">5</span>
+  </div>
+  <div class="percent-row">
+    <label>% na autopilotu:</label>
+    <input type="number" name="vedomost_percent" min="0" max="100" placeholder="0">
+    <span class="unit">%</span>
+  </div>
+  <label class="note-label">Poznámka</label>
+  <textarea name="vedomost_note" placeholder="Volitelně"></textarea>
+</div>
+
+<div class="question">
+  <div class="q-header"><span class="q-num">8/8</span><span class="q-title">Odolnost vůči vyrušení</span></div>
+  <div class="q-desc">Jak moc ses NEnechala vyrušit?</div>
+  <div class="scale-row">
+    <span class="scale-label">Skóre 1–10:</span>
+    <div class="slider-wrap">
+      <input type="range" name="vyruseni_score" min="1" max="10" value="5" data-target="vyruseni_val">
+      <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>10</span></div>
+    </div>
+    <span class="value-display" id="vyruseni_val">5</span>
+  </div>
+  <label class="note-label">Poznámka / insight bloku</label>
+  <textarea name="vyruseni_note" placeholder="Co by šlo v dalším bloku udělat jinak?"></textarea>
+</div>
+
+<div class="actions">
+  <button type="submit">Uložit reflexi</button>
+</div>
+
+</form>
+
+<div id="result">
+  <h2>✓ Hotovo</h2>
+  <p><strong>JSON už máš ve schránce.</strong> Otevři Claude appku a vlož ho do chatu — on ti to zapíše do Excelu i Wordu.</p>
+  <button class="gold" id="copy-btn">Kopírovat znovu</button>
+  <button class="secondary" id="new-btn">Nová reflexe</button>
+  <pre id="json-output"></pre>
+</div>
+
+</div>
+
+<div class="copy-toast" id="toast">✓ Zkopírováno do schránky</div>
+
+<script>
+// =============== Blok + datum ===============
+(function() {
+  const now = new Date();
+  const h = now.getHours();
+  let block = h;
+  if (h % 2 !== 0) block = h + 1;
+  if (block < 4) block = 4;
+  if (block > 22) block = 22;
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('block-time').textContent = pad(block) + ':00';
+  const days = ['neděle','pondělí','úterý','středa','čtvrtek','pátek','sobota'];
+  const months = ['ledna','února','března','dubna','května','června','července','srpna','září','října','listopadu','prosince'];
+  document.getElementById('block-date').textContent =
+    `${days[now.getDay()]} · ${now.getDate()}. ${months[now.getMonth()]} ${now.getFullYear()}`;
+})();
+
+// =============== Slidery ===============
+function colorize(el, v) {
+  el.classList.remove('low','mid','high');
+  if (v <= 3) el.classList.add('low');
+  else if (v <= 6) el.classList.add('mid');
+  else el.classList.add('high');
+}
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const target = document.getElementById(r.dataset.target);
+  colorize(target, +r.value);
+  r.addEventListener('input', () => {
+    target.textContent = r.value;
+    colorize(target, +r.value);
+  });
+});
+
+// =============== Toast ===============
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// =============== Submit ===============
+document.getElementById('reflexe-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const blockTime = document.getElementById('block-time').textContent;
+  const data = {
+    datum: `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,
+    cas_bloku: blockTime,
+    typ: 'rychlá',
+    aktivity: fd.get('aktivity') || '',
+    pareto: { skore: +fd.get('pareto_score'), procent_cile: fd.get('pareto_percent') || null, poznamka: fd.get('pareto_note') || '' },
+    parkinson: { skore: +fd.get('parkinson_score'), poznamka: fd.get('parkinson_note') || '' },
+    zrouti: fd.get('zrouti') || '',
+    posun_k_cilum: { skore: +fd.get('posun_score'), poznamka: fd.get('posun_note') || '' },
+    mentalni_setup: { skore: +fd.get('setup_score') },
+    focus: { skore: +fd.get('focus_score'), poznamka: fd.get('focus_note') || '' },
+    vedomost: { skore: +fd.get('vedomost_score'), procent_autopilot: fd.get('vedomost_percent') || null, poznamka: fd.get('vedomost_note') || '' },
+    odolnost_vyruseni: { skore: +fd.get('vyruseni_score'), poznamka: fd.get('vyruseni_note') || '' }
+  };
+  const scores = [
+    data.pareto.skore, data.parkinson.skore, data.posun_k_cilum.skore,
+    data.mentalni_setup.skore, data.focus.skore, data.vedomost.skore, data.odolnost_vyruseni.skore
+  ];
+  data.celkovy_skor = Math.round((scores.reduce((a,b)=>a+b,0) / scores.length) * 10) / 10;
+
+  const json = JSON.stringify(data, null, 2);
+  document.getElementById('json-output').textContent = json;
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('reflexe-form').style.display = 'none';
+  document.getElementById('notif-banner').style.display = 'none';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+
+  // Ulož historii lokálně (pro případ offline sync)
+  try {
+    const history = JSON.parse(localStorage.getItem('reflexe-historie') || '[]');
+    history.push(data);
+    localStorage.setItem('reflexe-historie', JSON.stringify(history));
+  } catch(e) {}
+
+  // Kopie do schránky
+  copyJson(json);
+});
+
+function copyJson(text) {
+  text = text || document.getElementById('json-output').textContent;
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(
+      () => showToast('✓ Zkopírováno do schránky'),
+      () => fallbackCopy(text)
+    );
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('✓ Zkopírováno'); }
+  catch(e) { showToast('⚠ Zkopíruj ručně z pole níže'); }
+  document.body.removeChild(ta);
+}
+
+document.getElementById('copy-btn').addEventListener('click', () => copyJson());
+document.getElementById('new-btn').addEventListener('click', () => location.reload());
+
+// =============== Service Worker + Notifikace ===============
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    console.log('SW registered');
+  }).catch(err => console.log('SW register failed', err));
+}
+
+const notifBanner = document.getElementById('notif-banner');
+const notifStatus = document.getElementById('notif-status');
+const notifBtn = document.getElementById('notif-btn');
+
+function updateNotifBanner() {
+  if (!('Notification' in window)) {
+    notifBanner.style.display = 'none';
+    return;
+  }
+  const perm = Notification.permission;
+  const enabled = localStorage.getItem('reminders-enabled') === '1';
+  if (perm === 'granted' && enabled) {
+    notifBanner.style.display = 'flex';
+    notifStatus.textContent = '🔔 Připomínky zapnuté (každé 2 h, 4:00–20:00)';
+    notifBtn.textContent = 'Vypnout';
+    notifBtn.classList.remove('gold');
+    notifBtn.classList.add('secondary');
+  } else if (perm === 'denied') {
+    notifBanner.style.display = 'flex';
+    notifStatus.textContent = '⚠ Notifikace zablokované v prohlížeči — povol je v nastavení';
+    notifBtn.style.display = 'none';
+  } else {
+    notifBanner.style.display = 'flex';
+    notifStatus.textContent = '🔔 Zapnout připomínky každé 2 hodiny?';
+    notifBtn.textContent = 'Zapnout';
+    notifBtn.classList.add('gold');
+    notifBtn.classList.remove('secondary');
+  }
+}
+
+notifBtn.addEventListener('click', async () => {
+  if (localStorage.getItem('reminders-enabled') === '1') {
+    localStorage.setItem('reminders-enabled', '0');
+    clearScheduledReminders();
+    showToast('Připomínky vypnuté');
+    updateNotifBanner();
+    return;
+  }
+  if (Notification.permission !== 'granted') {
+    const result = await Notification.requestPermission();
+    if (result !== 'granted') {
+      showToast('Notifikace nepovoleny');
+      return;
+    }
+  }
+  localStorage.setItem('reminders-enabled', '1');
+  scheduleNextReminder();
+  showToast('✓ Připomínky zapnuté');
+  updateNotifBanner();
+  // Uvítací notifikace (test)
+  new Notification('Reflexe bloku', {
+    body: 'Super, připomínky jsou aktivní. Uvidíme se v dalším bloku.',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png'
+  });
+});
+
+// In-app scheduling: pokud je appka otevřená (nebo SW aktivní), tohle to spustí
+let reminderTimeout = null;
+function clearScheduledReminders() {
+  if (reminderTimeout) { clearTimeout(reminderTimeout); reminderTimeout = null; }
+}
+function scheduleNextReminder() {
+  clearScheduledReminders();
+  const now = new Date();
+  // Najdi další sudou hodinu 4–20
+  const next = new Date(now);
+  next.setMinutes(0, 0, 0);
+  let h = now.getHours();
+  let targetH;
+  if (h < 4) targetH = 4;
+  else if (h >= 20) { next.setDate(next.getDate() + 1); targetH = 4; }
+  else {
+    targetH = (h % 2 === 0) ? h + 2 : h + 1;
+    if (targetH > 20) { next.setDate(next.getDate() + 1); targetH = 4; }
+  }
+  next.setHours(targetH);
+  const ms = next.getTime() - now.getTime();
+  console.log(`Další připomínka za ${Math.round(ms/60000)} min (${next.toLocaleTimeString()})`);
+  reminderTimeout = setTimeout(() => {
+    if (Notification.permission === 'granted' && localStorage.getItem('reminders-enabled') === '1') {
+      new Notification('⏰ Čas na reflexi', {
+        body: `Blok ${String(targetH).padStart(2,'0')}:00 — 3 minuty.`,
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        tag: 'reflexe-' + targetH,
+        requireInteraction: true
+      });
+    }
+    scheduleNextReminder();
+  }, ms);
+}
+
+// Při spuštění
+updateNotifBanner();
+if (localStorage.getItem('reminders-enabled') === '1' && Notification.permission === 'granted') {
+  scheduleNextReminder();
+}
+
+// Když se appka vrátí do popředí, překontroluj
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && localStorage.getItem('reminders-enabled') === '1') {
+    scheduleNextReminder();
+  }
+});
+</script>
+
+</body>
+</html>

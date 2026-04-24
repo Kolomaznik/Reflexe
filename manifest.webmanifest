@@ -1,0 +1,32 @@
+{
+  "name": "Reflexe bloku",
+  "short_name": "Reflexe",
+  "description": "Rychlá reflexe každého 2h pracovního bloku — 8 otázek, 3 minuty.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF9F6",
+  "theme_color": "#1F3A5F",
+  "lang": "cs",
+  "categories": ["productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
