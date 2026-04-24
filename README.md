@@ -6,15 +6,21 @@ Progressive Web App pro rychlou reflexi každého 2hodinového pracovního bloku
 
 ```
 android-app/
-├── index.html              # Hlavní formulář (8 otázek)
+├── index.html              # Hlavní formulář (8 otázek) + webhook integrace
 ├── manifest.webmanifest    # PWA manifest (ikona, barvy, jméno)
 ├── sw.js                   # Service worker (offline + notifikace)
 ├── icon-192.png            # Ikona 192×192
 ├── icon-512.png            # Ikona 512×512
 ├── icon-maskable-512.png   # Maskable ikona (Android adaptive)
 ├── reflexe-kalendar.ics    # Záložní připomínky pro Google Kalendář
+├── apps-script.gs          # Kód Google Apps Script (webhook → Sheet)
+├── NAVOD-GOOGLE-SHEET.md   # Návod na auto-ukládání do Google Sheetu
 └── README.md               # Tento soubor
 ```
+
+## Auto-ukládání do Google Sheetu (doporučeno)
+
+Po nastavení se každá reflexe **automaticky zapíše** do Google Sheetu bez ručního kopírování JSON do chatu. Návod: viz [NAVOD-GOOGLE-SHEET.md](NAVOD-GOOGLE-SHEET.md).
 
 ## Jak to rozchodit – 3 kroky
 
@@ -50,9 +56,10 @@ PWA notifikace jsou spolehlivé dokud je appka „živá" v systému. Pro 100% j
 1. **Připomínka zazvoní** v sudou hodinu (4–20 h).
 2. Klikni na notifikaci → otevře se formulář s přednastaveným časem bloku.
 3. Vyplň 8 otázek (slidery + textová pole) – trvá 3 min.
-4. Klikni **Uložit reflexi** → JSON se automaticky zkopíruje do schránky.
-5. Otevři Claude app → vlož (long-press → Paste) do chatu → pošli.
-6. Claude zapíše data do Excelu a Wordu reflexe.
+4. Klikni **Uložit reflexi**:
+   - **S webhook nastavením:** data se odešlou do Google Sheetu → zelené ✓
+   - **Bez webhooku (nebo offline):** JSON se zkopíruje do schránky → vložíš do Claude chatu
+5. Claude pak synchronizuje data do Excelu a Wordu reflexe.
 
 ## Tipy
 

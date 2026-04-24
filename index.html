@@ -169,6 +169,44 @@
     z-index: 100;
   }
   .copy-toast.show { transform: translateX(-50%) translateY(0); }
+  /* Nastavení + stav odeslání */
+  .settings-link {
+    display: inline-block; margin-top: 8px;
+    color: var(--muted); font-size: 12px; text-decoration: underline;
+    cursor: pointer; background: none; border: none; padding: 0; width: auto;
+  }
+  .settings-panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .settings-panel label {
+    display: block; color: var(--navy); font-weight: 600;
+    font-size: 12px; margin-bottom: 6px; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .settings-panel input[type=url] {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font: inherit; font-size: 13px; background: #FCFBF7;
+  }
+  .settings-panel .help { color: var(--muted); font-size: 11px; margin-top: 6px; line-height: 1.4; }
+  .settings-panel .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .settings-panel .btn-row button { margin: 0; padding: 8px 14px; font-size: 13px; width: auto; }
+  .status-box {
+    padding: 12px 14px; border-radius: 8px; margin: 14px 0 6px;
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .status-box.sending { background: #FFF3CD; color: #856404; border: 1px solid #FFE69C; }
+  .status-box.ok      { background: #D4EDDA; color: #155724; border: 1px solid #C3E6CB; }
+  .status-box.offline { background: #F8D7DA; color: #721C24; border: 1px solid #F5C6CB; }
+  .status-box.info    { background: #D1ECF1; color: #0C5460; border: 1px solid #BEE5EB; }
+  .queue-badge {
+    display: inline-block; background: var(--amber); color: var(--navy);
+    padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;
+    margin-left: 6px;
+  }
 </style>
 </head>
 <body>
@@ -187,6 +225,22 @@
 
 <div class="hint">
   Odpovídej rychle a poctivě. Škály: <strong>1 = slabé, 10 = mistrovské</strong>.
+  <button type="button" class="settings-link" id="settings-toggle">⚙ Nastavení automatického ukládání</button>
+</div>
+
+<div id="settings-panel" class="settings-panel" style="display:none">
+  <label for="webhook-url">URL Google Apps Script (webhook)</label>
+  <input type="url" id="webhook-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false">
+  <div class="help">
+    Vlož URL z Apps Scriptu (po „Deploy → Web App"). Reflexe se po uložení odešle přímo do tvého Google Sheetu.
+    Když není vyplněno, data se jen zkopírují do schránky jako dříve.
+  </div>
+  <div class="btn-row">
+    <button type="button" class="gold" id="settings-save">Uložit</button>
+    <button type="button" class="secondary" id="settings-test">Test odeslání</button>
+    <button type="button" class="secondary" id="settings-clear">Smazat</button>
+  </div>
+  <div id="queue-info" style="margin-top:10px; font-size:12px; color:var(--muted);"></div>
 </div>
 
 <form id="reflexe-form">
@@ -319,8 +373,10 @@
 
 <div id="result">
   <h2>✓ Hotovo</h2>
-  <p><strong>JSON už máš ve schránce.</strong> Otevři Claude appku a vlož ho do chatu — on ti to zapíše do Excelu i Wordu.</p>
-  <button class="gold" id="copy-btn">Kopírovat znovu</button>
+  <div id="send-status" class="status-box info">Zpracovávám…</div>
+  <p id="result-hint"></p>
+  <button class="gold" id="retry-btn" style="display:none">Zkusit znovu odeslat</button>
+  <button class="gold" id="copy-btn">Kopírovat JSON</button>
   <button class="secondary" id="new-btn">Nová reflexe</button>
   <pre id="json-output"></pre>
 </div>
@@ -370,8 +426,85 @@ function showToast(text) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// =============== Webhook + Offline queue ===============
+const QUEUE_KEY = 'reflexe-queue';
+const WEBHOOK_KEY = 'webhook-url';
+
+function getWebhookUrl() {
+  return (localStorage.getItem(WEBHOOK_KEY) || '').trim();
+}
+function getQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+function saveQueue(q) {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+}
+function enqueue(data) {
+  const q = getQueue();
+  q.push({ data: data, ts: Date.now(), tries: 0 });
+  saveQueue(q);
+}
+
+async function postToWebhook(data) {
+  const url = getWebhookUrl();
+  if (!url) throw new Error('Webhook URL není nastavená');
+  // Použij text/plain Content-Type, aby Apps Script neřešil CORS preflight
+  const res = await fetch(url, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(data),
+    redirect: 'follow'
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const txt = await res.text();
+  // Apps Script vrátí JSON { status: "ok", ... } nebo prostý text
+  try {
+    const parsed = JSON.parse(txt);
+    if (parsed.status && parsed.status !== 'ok') throw new Error(parsed.message || 'Chyba serveru');
+  } catch(e) {
+    // Ne-JSON odpověď — pokud obsahuje "error", považuj za chybu
+    if (/error|exception/i.test(txt)) throw new Error(txt.slice(0, 200));
+  }
+  return true;
+}
+
+async function flushQueue() {
+  if (!getWebhookUrl()) return { sent: 0, remaining: getQueue().length };
+  const q = getQueue();
+  if (q.length === 0) return { sent: 0, remaining: 0 };
+  let sent = 0;
+  const remaining = [];
+  for (const item of q) {
+    try {
+      await postToWebhook(item.data);
+      sent++;
+    } catch(e) {
+      item.tries = (item.tries || 0) + 1;
+      if (item.tries < 20) remaining.push(item);
+      else remaining.push(item); // nikdy nezahazujeme, jen necháme
+    }
+  }
+  saveQueue(remaining);
+  updateQueueInfo();
+  return { sent: sent, remaining: remaining.length };
+}
+
+function updateQueueInfo() {
+  const el = document.getElementById('queue-info');
+  if (!el) return;
+  const q = getQueue();
+  const url = getWebhookUrl();
+  const parts = [];
+  if (url) parts.push('✓ Webhook nastaven');
+  else parts.push('⚠ Webhook není nastaven — ukládá se jen do schránky');
+  if (q.length > 0) parts.push(`📦 Čeká v queue: ${q.length} reflexí`);
+  el.textContent = parts.join(' · ');
+}
+
 // =============== Submit ===============
-document.getElementById('reflexe-form').addEventListener('submit', (e) => {
+document.getElementById('reflexe-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const now = new Date();
@@ -411,8 +544,68 @@ document.getElementById('reflexe-form').addEventListener('submit', (e) => {
     localStorage.setItem('reflexe-historie', JSON.stringify(history));
   } catch(e) {}
 
-  // Kopie do schránky
-  copyJson(json);
+  // Zkus odeslat na webhook
+  await sendReflexe(data, json);
+});
+
+async function sendReflexe(data, json) {
+  const url = getWebhookUrl();
+  const statusEl = document.getElementById('send-status');
+  const hintEl = document.getElementById('result-hint');
+  const retryEl = document.getElementById('retry-btn');
+
+  if (!url) {
+    // Fallback: jen do schránky
+    statusEl.className = 'status-box info';
+    statusEl.textContent = '📋 Zkopírováno do schránky';
+    hintEl.innerHTML = 'Webhook není nastaven — JSON máš <strong>ve schránce</strong>. Vlož ho do Claude chatu. (Pro auto-uložení nastav webhook v ⚙ Nastavení.)';
+    retryEl.style.display = 'none';
+    copyJson(json);
+    return;
+  }
+
+  statusEl.className = 'status-box sending';
+  statusEl.textContent = '⏳ Odesílám do Google Sheetu…';
+  hintEl.textContent = '';
+  retryEl.style.display = 'none';
+
+  try {
+    await postToWebhook(data);
+    statusEl.className = 'status-box ok';
+    statusEl.textContent = '✓ Uloženo do Google Sheetu';
+    hintEl.textContent = 'Reflexe je zapsaná. Claude ji pak synchronizuje do Excelu i Wordu reflexe.';
+    retryEl.style.display = 'none';
+    // Pokud byly v queue staré záznamy, zkus je poslat taky
+    await flushQueue();
+  } catch(e) {
+    console.warn('Webhook failed:', e);
+    // Zařaď do offline queue
+    enqueue(data);
+    statusEl.className = 'status-box offline';
+    statusEl.textContent = '⚠ Offline nebo chyba webhook — zkusím později';
+    hintEl.innerHTML = `Reflexe je v <strong>offline frontě</strong> a odešle se automaticky, až bude spojení.<br><small>(${e.message || e})</small>`;
+    retryEl.style.display = 'block';
+    // Záloha do schránky
+    copyJson(json);
+  }
+}
+
+document.getElementById('retry-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('send-status');
+  const hintEl = document.getElementById('result-hint');
+  statusEl.className = 'status-box sending';
+  statusEl.textContent = '⏳ Zkouším odeslat frontu…';
+  const r = await flushQueue();
+  if (r.remaining === 0 && r.sent > 0) {
+    statusEl.className = 'status-box ok';
+    statusEl.textContent = `✓ Odesláno ${r.sent} reflexí`;
+    hintEl.textContent = '';
+    document.getElementById('retry-btn').style.display = 'none';
+  } else {
+    statusEl.className = 'status-box offline';
+    statusEl.textContent = `⚠ Čeká ${r.remaining} reflexí`;
+    hintEl.textContent = 'Zkusím znovu, až bude spojení.';
+  }
 });
 
 function copyJson(text) {
@@ -549,7 +742,65 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && localStorage.getItem('reminders-enabled') === '1') {
     scheduleNextReminder();
   }
+  if (!document.hidden) flushQueue();
 });
+
+// =============== Nastavení (webhook) ===============
+const settingsToggle = document.getElementById('settings-toggle');
+const settingsPanel = document.getElementById('settings-panel');
+const webhookInput = document.getElementById('webhook-url');
+const settingsSave = document.getElementById('settings-save');
+const settingsTest = document.getElementById('settings-test');
+const settingsClear = document.getElementById('settings-clear');
+
+settingsToggle.addEventListener('click', () => {
+  const open = settingsPanel.style.display !== 'none';
+  settingsPanel.style.display = open ? 'none' : 'block';
+  if (!open) {
+    webhookInput.value = getWebhookUrl();
+    updateQueueInfo();
+  }
+});
+settingsSave.addEventListener('click', () => {
+  const v = webhookInput.value.trim();
+  if (v && !/^https:\/\/script\.google\.com\//.test(v)) {
+    if (!confirm('URL nevypadá jako Google Apps Script. Přesto uložit?')) return;
+  }
+  localStorage.setItem(WEBHOOK_KEY, v);
+  showToast(v ? '✓ Webhook uložen' : '✓ Webhook smazán');
+  updateQueueInfo();
+});
+settingsClear.addEventListener('click', () => {
+  localStorage.removeItem(WEBHOOK_KEY);
+  webhookInput.value = '';
+  showToast('✓ Webhook smazán');
+  updateQueueInfo();
+});
+settingsTest.addEventListener('click', async () => {
+  const v = webhookInput.value.trim();
+  if (!v) { showToast('⚠ Vyplň URL'); return; }
+  localStorage.setItem(WEBHOOK_KEY, v);
+  showToast('⏳ Testuji…');
+  const testData = {
+    datum: new Date().toISOString().slice(0,10),
+    cas_bloku: 'TEST',
+    typ: 'test',
+    aktivity: 'Test odeslání z appky',
+    celkovy_skor: 0,
+    _test: true
+  };
+  try {
+    await postToWebhook(testData);
+    showToast('✓ Test OK — zkontroluj Google Sheet');
+  } catch(e) {
+    showToast('✗ Chyba: ' + (e.message || e).slice(0, 80));
+  }
+});
+
+// Auto-flush fronty při startu + při online události
+flushQueue().catch(()=>{});
+window.addEventListener('online', () => flushQueue().catch(()=>{}));
+updateQueueInfo();
 </script>
 
 </body>
