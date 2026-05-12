@@ -7,6 +7,7 @@
 <title>Hlasové řazení úkolů</title>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 <style>
   :root {
     --navy: #1F3A5F;
@@ -265,7 +266,13 @@ koupit chleba
 připravit prezentaci"></textarea>
       <div class="row" style="margin-top: 10px;">
         <button id="dictateBtn" class="secondary small" type="button">🎤 Diktovat úkoly</button>
+        <button id="ocrBtn" class="secondary small" type="button">📷 Načíst z fotky</button>
         <button id="clearBtn" class="secondary small" type="button">🗑️ Vymazat</button>
+      </div>
+      <input type="file" id="ocrInput" accept="image/*" multiple style="display:none">
+      <div id="ocrProgressWrap" class="hidden" style="margin-top:10px;">
+        <div class="progress-text"><span id="ocrProgressText">Připravuji OCR...</span></div>
+        <div class="progress-bar"><div id="ocrProgressFill" class="progress-fill" style="width:0%"></div></div>
       </div>
       <div id="dictateStatus" class="heard"></div>
     </div>
@@ -363,6 +370,11 @@ připravit prezentaci"></textarea>
     dictateBtn: $('dictateBtn'),
     dictateStatus: $('dictateStatus'),
     clearBtn: $('clearBtn'),
+    ocrBtn: $('ocrBtn'),
+    ocrInput: $('ocrInput'),
+    ocrProgressWrap: $('ocrProgressWrap'),
+    ocrProgressText: $('ocrProgressText'),
+    ocrProgressFill: $('ocrProgressFill'),
     startBtn: $('startBtn'),
     progressText: $('progressText'),
     progressFill: $('progressFill'),
@@ -496,6 +508,102 @@ připravit prezentaci"></textarea>
     els.tasksInput.value = '';
     els.dictateStatus.textContent = '';
   });
+
+  // ---------- OCR (photo / screenshot) ----------
+  let ocrWorker = null;
+  let ocrRunning = false;
+
+  function setupOCR() {
+    els.ocrBtn.addEventListener('click', () => {
+      if (ocrRunning) return;
+      els.ocrInput.value = '';
+      els.ocrInput.click();
+    });
+    els.ocrInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+      await runOCR(files);
+    });
+  }
+
+  function setOcrProgress(text, pct) {
+    els.ocrProgressWrap.classList.remove('hidden');
+    els.ocrProgressText.textContent = text;
+    els.ocrProgressFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  }
+  function hideOcrProgress() {
+    els.ocrProgressWrap.classList.add('hidden');
+    els.ocrProgressFill.style.width = '0%';
+  }
+
+  async function ensureTesseract() {
+    if (typeof Tesseract === 'undefined') {
+      // Wait briefly for deferred script
+      for (let i = 0; i < 30 && typeof Tesseract === 'undefined'; i++) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+    if (typeof Tesseract === 'undefined') {
+      throw new Error('Knihovna OCR se nenačetla (potřebuje internet při prvním použití).');
+    }
+  }
+
+  function cleanOcrLine(line) {
+    return line
+      .replace(/^\s*[\-\*•◦·–—■□●○▸▹▪▫�]+\s*/, '')
+      .replace(/^\s*\d+[\.\)]\s*/, '')
+      .replace(/^\s*\[\s*[xX\s]?\s*\]\s*/, '')
+      .replace(/^\s*[☐☑☒□■✓✔✗]\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async function runOCR(files) {
+    ocrRunning = true;
+    els.ocrBtn.disabled = true;
+    els.ocrBtn.textContent = '⏳ Zpracovávám...';
+    try {
+      await ensureTesseract();
+      setOcrProgress('Stahuji jazyk (jen poprvé)...', 5);
+      if (!ocrWorker) {
+        ocrWorker = await Tesseract.createWorker(['ces', 'eng'], 1, {
+          logger: (m) => {
+            if (!m) return;
+            if (m.status === 'recognizing text') {
+              setOcrProgress('Rozpoznávám text... ' + Math.round((m.progress || 0) * 100) + '%', (m.progress || 0) * 100);
+            } else if (m.status) {
+              setOcrProgress(m.status, (m.progress || 0) * 100);
+            }
+          }
+        });
+      }
+      const collected = [];
+      for (let idx = 0; idx < files.length; idx++) {
+        const file = files[idx];
+        setOcrProgress(`Soubor ${idx + 1}/${files.length}: ${file.name}`, 0);
+        const { data } = await ocrWorker.recognize(file);
+        const text = (data && data.text) || '';
+        const lines = text.split(/\r?\n/)
+          .map(cleanOcrLine)
+          .filter(l => l && l.length >= 2 && /[\p{L}\p{N}]/u.test(l));
+        collected.push(...lines);
+      }
+      if (collected.length === 0) {
+        els.dictateStatus.textContent = 'Na obrázku nebyl rozpoznán žádný text.';
+      } else {
+        const cur = els.tasksInput.value.trim();
+        els.tasksInput.value = (cur ? cur + '\n' : '') + collected.join('\n');
+        els.dictateStatus.textContent = `✅ Načteno ${collected.length} řádků. Zkontroluj a uprav, pokud je třeba.`;
+      }
+    } catch (err) {
+      els.dictateStatus.textContent = '❌ OCR chyba: ' + err.message;
+    } finally {
+      hideOcrProgress();
+      els.ocrBtn.disabled = false;
+      els.ocrBtn.textContent = '📷 Načíst z fotky';
+      ocrRunning = false;
+    }
+  }
 
   // ---------- Start sorting ----------
   els.startBtn.addEventListener('click', () => {
@@ -913,6 +1021,7 @@ připravit prezentaci"></textarea>
   loadCategories();
   renderCategories();
   setupDictation();
+  setupOCR();
 
 })();
 </script>
