@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F3A5F">
+<title>Hlasové řazení úkolů</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --navy: #1F3A5F;
+    --gold: #C9A961;
+    --light-gold: #F5EFE0;
+    --bg: #FAF9F6;
+    --card: #FFFFFF;
+    --text: #2C2C2C;
+    --muted: #6B6B6B;
+    --border: #E5E2DA;
+    --red: #DC3545;
+    --amber: #FFC107;
+    --green: #28A745;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 16px 16px 80px;
+  }
+  header {
+    text-align: center;
+    padding: 16px 0 24px;
+    border-bottom: 2px solid var(--gold);
+    margin-bottom: 20px;
+  }
+  header h1 {
+    margin: 0 0 4px;
+    color: var(--navy);
+    font-size: 24px;
+    letter-spacing: 0.5px;
+  }
+  header .subtitle { color: var(--gold); font-style: italic; font-size: 15px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card h2 {
+    color: var(--navy); margin: 0 0 12px;
+    font-size: 18px;
+  }
+  textarea, input[type=text] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit; font-size: 14px;
+    background: #FCFBF7;
+    color: var(--text);
+  }
+  textarea {
+    min-height: 130px;
+    resize: vertical;
+  }
+  textarea:focus, input[type=text]:focus {
+    outline: none; border-color: var(--gold); background: #fff;
+  }
+  label.field-label {
+    display: block; color: var(--muted); font-size: 11px;
+    margin: 10px 0 4px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  button {
+    background: var(--navy); color: #fff; border: none;
+    padding: 14px 24px; font-size: 16px; font-weight: 700;
+    border-radius: 10px; cursor: pointer;
+    transition: background .15s, opacity .15s;
+  }
+  button:active { background: #142740; }
+  button.gold { background: var(--gold); color: #fff; }
+  button.gold:active { background: #a98a45; }
+  button.secondary { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
+  button.danger { background: var(--red); }
+  button.small { padding: 8px 14px; font-size: 13px; }
+  button.full { width: 100%; margin-top: 12px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 1 1 auto; }
+  .cat-row { display: grid; grid-template-columns: 36px 1fr; gap: 10px; margin-bottom: 8px; align-items: center; }
+  .cat-num {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    background: var(--navy); color: #fff;
+    border-radius: 50%; font-weight: 700;
+  }
+  .hint {
+    background: var(--light-gold);
+    border-left: 4px solid var(--gold);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .hidden { display: none !important; }
+  .stage {}
+  .task-display {
+    background: var(--light-gold);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    color: var(--navy);
+    font-size: 22px;
+    font-weight: 600;
+    min-height: 100px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 14px 0;
+    word-break: break-word;
+  }
+  .progress-bar {
+    background: var(--border);
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .progress-fill {
+    background: var(--gold);
+    height: 100%;
+    transition: width .25s;
+  }
+  .progress-text {
+    color: var(--muted); font-size: 13px; text-align: center;
+    margin-bottom: 6px;
+  }
+  .mic-status {
+    display: flex; align-items: center; gap: 10px;
+    justify-content: center;
+    padding: 12px;
+    border-radius: 10px;
+    background: #fff;
+    border: 2px solid var(--border);
+    font-size: 14px;
+    color: var(--muted);
+    margin: 10px 0;
+  }
+  .mic-status.listening { border-color: var(--green); color: var(--green); }
+  .mic-status.error { border-color: var(--red); color: var(--red); }
+  .mic-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .mic-status.listening .mic-dot {
+    background: var(--green);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(40,167,69,0.6); }
+    70% { box-shadow: 0 0 0 10px rgba(40,167,69,0); }
+    100% { box-shadow: 0 0 0 0 rgba(40,167,69,0); }
+  }
+  .heard {
+    font-size: 13px; color: var(--muted);
+    text-align: center; margin: 6px 0;
+    min-height: 18px;
+  }
+  .quick-btns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .quick-btns button {
+    padding: 14px 8px;
+    font-size: 13px;
+    text-align: center;
+    background: #fff;
+    color: var(--navy);
+    border: 2px solid var(--navy);
+    line-height: 1.2;
+  }
+  .quick-btns button .num {
+    display: block; font-size: 18px; font-weight: 800; color: var(--gold);
+    margin-bottom: 2px;
+  }
+  .quick-btns button.skip {
+    grid-column: span 3;
+    border-color: var(--muted); color: var(--muted);
+  }
+  .summary-cat {
+    margin-bottom: 16px;
+  }
+  .summary-cat h3 {
+    color: var(--navy);
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--gold);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .summary-cat h3 .badge {
+    background: var(--gold); color: #fff;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 12px; font-weight: 700;
+  }
+  .summary-cat ul { margin: 0; padding-left: 22px; }
+  .summary-cat li { padding: 3px 0; font-size: 14px; }
+  .summary-cat.empty { opacity: 0.5; }
+  .summary-cat.empty li { font-style: italic; color: var(--muted); }
+  .actions-bar {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .actions-bar > button { flex: 1 1 200px; }
+  .footer-nav {
+    text-align: center; margin-top: 24px;
+    color: var(--muted); font-size: 13px;
+  }
+  .footer-nav a { color: var(--navy); text-decoration: none; border-bottom: 1px dotted var(--gold); }
+  .no-support {
+    background: #FFF3CD; border: 1px solid #FFE69C;
+    color: #664D03; padding: 12px; border-radius: 8px;
+    margin-bottom: 14px; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Hlasové řazení úkolů</h1>
+    <div class="subtitle">Rozděl seznam do 6 kategorií hlasem</div>
+  </header>
+
+  <div id="noSupport" class="no-support hidden">
+    Tvůj prohlížeč nepodporuje hlasové rozpoznávání (Web Speech API). Použij <b>Chrome</b> na desktopu nebo Androidu. Aplikace pak bude fungovat pouze v ručním režimu (tlačítky).
+  </div>
+
+  <!-- STAGE 1: SETUP -->
+  <section id="stageSetup" class="stage">
+
+    <div class="card">
+      <h2>1. Pojmenuj 6 kategorií</h2>
+      <p style="color:var(--muted); font-size:13px; margin:0 0 10px;">Můžeš nechat výchozí názvy, nebo si je upravit. Při řazení je můžeš vyvolat hlasem buď číslem (např. „jedna") nebo jménem.</p>
+      <div id="categoriesList"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Zadej seznam úkolů</h2>
+      <p style="color:var(--muted); font-size:13px; margin:0 0 10px;">Každý úkol na samostatný řádek. Můžeš vložit text, napsat ručně, nebo nadiktovat hlasem.</p>
+      <textarea id="tasksInput" placeholder="Např.:
+zaplatit nájem
+zavolat doktorovi
+koupit chleba
+připravit prezentaci"></textarea>
+      <div class="row" style="margin-top: 10px;">
+        <button id="dictateBtn" class="secondary small" type="button">🎤 Diktovat úkoly</button>
+        <button id="clearBtn" class="secondary small" type="button">🗑️ Vymazat</button>
+      </div>
+      <div id="dictateStatus" class="heard"></div>
+    </div>
+
+    <button id="startBtn" class="gold full">▶️ Spustit hlasové řazení</button>
+
+  </section>
+
+  <!-- STAGE 2: SORTING -->
+  <section id="stageSorting" class="stage hidden">
+
+    <div class="card">
+      <div class="progress-text"><span id="progressText">Úkol 1 / 1</span></div>
+      <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+
+      <div class="task-display" id="taskDisplay">—</div>
+
+      <div class="mic-status" id="micStatus">
+        <span class="mic-dot"></span>
+        <span id="micText">Připravuji...</span>
+      </div>
+      <div class="heard" id="heardText">&nbsp;</div>
+
+      <div class="row" style="justify-content: center;">
+        <button class="secondary small" id="repeatBtn" type="button">🔁 Přečíst znovu</button>
+        <button class="secondary small" id="pauseListenBtn" type="button">⏸ Pauza</button>
+      </div>
+
+      <div class="quick-btns" id="quickBtns"></div>
+
+      <button class="danger full" id="finishEarlyBtn" type="button" style="margin-top: 18px;">Ukončit a zobrazit výsledek</button>
+    </div>
+
+  </section>
+
+  <!-- STAGE 3: SUMMARY -->
+  <section id="stageSummary" class="stage hidden">
+
+    <div class="card">
+      <h2>Hotovo — přehled kategorií</h2>
+      <div id="summaryList"></div>
+
+      <div class="actions-bar">
+        <button class="gold" id="downloadDocBtn" type="button">📄 Stáhnout Word</button>
+        <button class="secondary" id="copyTextBtn" type="button">📋 Zkopírovat text</button>
+        <button class="secondary" id="restartBtn" type="button">🔄 Začít znovu</button>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="footer-nav">
+    <a href="index.html">← Zpět na Reflexi bloku</a>
+  </div>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- State ----------
+  const DEFAULT_CATEGORIES = ['Práce', 'Osobní', 'Domácnost', 'Zdraví', 'Nákupy', 'Jiné'];
+  const NUMBER_WORDS = {
+    'jedna': 1, 'jednička': 1, 'první': 1, 'prvni': 1, 'jedničku': 1,
+    'dva': 2, 'dvě': 2, 'dvojka': 2, 'druhý': 2, 'druha': 2, 'dvojku': 2, 'druhou': 2,
+    'tři': 3, 'trojka': 3, 'třetí': 3, 'treti': 3, 'trojku': 3, 'třetka': 3,
+    'čtyři': 4, 'ctyri': 4, 'čtyřka': 4, 'čtvrtý': 4, 'ctvrty': 4, 'čtyřku': 4, 'čtvrtá': 4, 'čtvrtou': 4,
+    'pět': 5, 'pet': 5, 'pětka': 5, 'pátý': 5, 'paty': 5, 'pětku': 5, 'pátá': 5, 'pátou': 5,
+    'šest': 6, 'sest': 6, 'šestka': 6, 'šestý': 6, 'sesty': 6, 'šestku': 6, 'šestá': 6, 'šestou': 6
+  };
+  const SKIP_WORDS = ['přeskočit', 'preskocit', 'přeskoč', 'preskoc', 'skip', 'pryč', 'pryc', 'vynechat', 'vynech'];
+  const REPEAT_WORDS = ['znovu', 'opakuj', 'znova', 'ještě jednou', 'jeste jednou', 'zopakuj'];
+  const STOP_WORDS = ['konec', 'stop', 'ukonči', 'ukonci', 'dost'];
+
+  const state = {
+    categories: [...DEFAULT_CATEGORIES],
+    tasks: [],
+    currentIndex: 0,
+    assignments: [], // index per task = category number (1-6) or 0 (skipped)
+    listening: false,
+    speaking: false,
+    paused: false,
+    dictating: false
+  };
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    stageSetup: $('stageSetup'),
+    stageSorting: $('stageSorting'),
+    stageSummary: $('stageSummary'),
+    categoriesList: $('categoriesList'),
+    tasksInput: $('tasksInput'),
+    dictateBtn: $('dictateBtn'),
+    dictateStatus: $('dictateStatus'),
+    clearBtn: $('clearBtn'),
+    startBtn: $('startBtn'),
+    progressText: $('progressText'),
+    progressFill: $('progressFill'),
+    taskDisplay: $('taskDisplay'),
+    micStatus: $('micStatus'),
+    micText: $('micText'),
+    heardText: $('heardText'),
+    repeatBtn: $('repeatBtn'),
+    pauseListenBtn: $('pauseListenBtn'),
+    quickBtns: $('quickBtns'),
+    finishEarlyBtn: $('finishEarlyBtn'),
+    summaryList: $('summaryList'),
+    downloadDocBtn: $('downloadDocBtn'),
+    copyTextBtn: $('copyTextBtn'),
+    restartBtn: $('restartBtn'),
+    noSupport: $('noSupport')
+  };
+
+  // ---------- Speech support detection ----------
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const hasSR = !!SpeechRecognition;
+  const hasTTS = 'speechSynthesis' in window;
+  if (!hasSR) els.noSupport.classList.remove('hidden');
+
+  // ---------- Persistence ----------
+  const STORAGE_KEY = 'ukoly_state_v1';
+  const saveCategories = () => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ categories: state.categories })); } catch (e) {}
+  };
+  const loadCategories = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.categories) && data.categories.length === 6) {
+        state.categories = data.categories.map((s, i) => String(s || DEFAULT_CATEGORIES[i]).trim() || DEFAULT_CATEGORIES[i]);
+      }
+    } catch (e) {}
+  };
+
+  // ---------- Setup stage ----------
+  function renderCategories() {
+    els.categoriesList.innerHTML = '';
+    state.categories.forEach((name, i) => {
+      const row = document.createElement('div');
+      row.className = 'cat-row';
+      row.innerHTML = `
+        <div class="cat-num">${i + 1}</div>
+        <input type="text" data-cat="${i}" value="${escapeHtml(name)}" maxlength="40">
+      `;
+      els.categoriesList.appendChild(row);
+    });
+    els.categoriesList.querySelectorAll('input[data-cat]').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.cat, 10);
+        state.categories[idx] = e.target.value.trim() || DEFAULT_CATEGORIES[idx];
+        saveCategories();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+
+  // ---------- Dictation (input phase) ----------
+  let dictateRec = null;
+  function setupDictation() {
+    if (!hasSR) { els.dictateBtn.disabled = true; return; }
+    els.dictateBtn.addEventListener('click', () => {
+      if (state.dictating) { stopDictation(); return; }
+      startDictation();
+    });
+  }
+  function startDictation() {
+    if (!hasSR) return;
+    try {
+      dictateRec = new SpeechRecognition();
+      dictateRec.lang = 'cs-CZ';
+      dictateRec.continuous = true;
+      dictateRec.interimResults = true;
+      let finalBuffer = '';
+      dictateRec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const txt = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            finalBuffer += (finalBuffer ? '\n' : '') + txt.trim();
+            const cur = els.tasksInput.value.trim();
+            els.tasksInput.value = (cur ? cur + '\n' : '') + txt.trim();
+          } else {
+            interim += txt;
+          }
+        }
+        els.dictateStatus.textContent = interim ? '…' + interim : 'Poslouchám — řekni úkol, pak pauza pro další.';
+      };
+      dictateRec.onerror = (e) => {
+        els.dictateStatus.textContent = 'Chyba mikrofonu: ' + (e.error || 'neznámá');
+      };
+      dictateRec.onend = () => {
+        if (state.dictating) {
+          try { dictateRec.start(); } catch (e) { stopDictation(); }
+        }
+      };
+      dictateRec.start();
+      state.dictating = true;
+      els.dictateBtn.textContent = '⏹ Zastavit diktování';
+      els.dictateBtn.classList.remove('secondary');
+      els.dictateBtn.classList.add('danger');
+      els.dictateBtn.style.color = '#fff';
+      els.dictateStatus.textContent = 'Poslouchám — řekni úkol, pak pauza pro další.';
+    } catch (e) {
+      els.dictateStatus.textContent = 'Nelze spustit mikrofon: ' + e.message;
+    }
+  }
+  function stopDictation() {
+    state.dictating = false;
+    if (dictateRec) {
+      try { dictateRec.stop(); } catch (e) {}
+      dictateRec = null;
+    }
+    els.dictateBtn.textContent = '🎤 Diktovat úkoly';
+    els.dictateBtn.classList.add('secondary');
+    els.dictateBtn.classList.remove('danger');
+    els.dictateBtn.style.color = '';
+    els.dictateStatus.textContent = '';
+  }
+
+  els.clearBtn.addEventListener('click', () => {
+    if (els.tasksInput.value.trim() && !confirm('Opravdu vymazat všechny úkoly?')) return;
+    els.tasksInput.value = '';
+    els.dictateStatus.textContent = '';
+  });
+
+  // ---------- Start sorting ----------
+  els.startBtn.addEventListener('click', () => {
+    stopDictation();
+    const raw = els.tasksInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (raw.length === 0) { alert('Nejdřív zadej alespoň jeden úkol.'); return; }
+    state.tasks = raw;
+    state.currentIndex = 0;
+    state.assignments = new Array(raw.length).fill(0);
+    showStage('sorting');
+    renderQuickBtns();
+    nextTask();
+  });
+
+  function showStage(name) {
+    els.stageSetup.classList.toggle('hidden', name !== 'setup');
+    els.stageSorting.classList.toggle('hidden', name !== 'sorting');
+    els.stageSummary.classList.toggle('hidden', name !== 'summary');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ---------- Sorting stage ----------
+  function renderQuickBtns() {
+    els.quickBtns.innerHTML = '';
+    state.categories.forEach((name, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = `<span class="num">${i + 1}</span>${escapeHtml(name)}`;
+      b.addEventListener('click', () => assign(i + 1));
+      els.quickBtns.appendChild(b);
+    });
+    const skip = document.createElement('button');
+    skip.type = 'button';
+    skip.className = 'skip';
+    skip.textContent = '⏭ Přeskočit úkol';
+    skip.addEventListener('click', () => assign(0));
+    els.quickBtns.appendChild(skip);
+  }
+
+  function nextTask() {
+    if (state.currentIndex >= state.tasks.length) {
+      finish();
+      return;
+    }
+    const task = state.tasks[state.currentIndex];
+    els.taskDisplay.textContent = task;
+    els.progressText.textContent = `Úkol ${state.currentIndex + 1} / ${state.tasks.length}`;
+    els.progressFill.style.width = `${(state.currentIndex / state.tasks.length) * 100}%`;
+    els.heardText.textContent = ' ';
+    speakAndListen(task);
+  }
+
+  function speakAndListen(text) {
+    stopListening();
+    if (!hasTTS) {
+      startListening();
+      return;
+    }
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'cs-CZ';
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    state.speaking = true;
+    setMic('speaking', 'Čtu úkol...');
+    u.onend = () => {
+      state.speaking = false;
+      if (!state.paused) startListening();
+    };
+    u.onerror = () => {
+      state.speaking = false;
+      if (!state.paused) startListening();
+    };
+    try {
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      state.speaking = false;
+      startListening();
+    }
+  }
+
+  let recog = null;
+  function startListening() {
+    if (!hasSR) { setMic('error', 'Hlasové rozpoznávání nepodporováno — použij tlačítka'); return; }
+    if (state.paused) return;
+    stopListening();
+    try {
+      recog = new SpeechRecognition();
+      recog.lang = 'cs-CZ';
+      recog.continuous = false;
+      recog.interimResults = true;
+      recog.maxAlternatives = 3;
+      recog.onstart = () => {
+        state.listening = true;
+        setMic('listening', 'Poslouchám — řekni číslo nebo název kategorie');
+      };
+      recog.onresult = (e) => {
+        let interim = '';
+        let finalText = '';
+        for (let i = 0; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            // try all alternatives
+            for (let j = 0; j < r.length; j++) {
+              finalText = r[j].transcript;
+              const action = parseCommand(finalText);
+              if (action) {
+                els.heardText.textContent = `Slyším: „${finalText.trim()}"`;
+                handleAction(action);
+                return;
+              }
+            }
+            els.heardText.textContent = `Nerozumím: „${finalText.trim()}" — zkus znovu nebo klikni tlačítko.`;
+          } else {
+            interim += r[0].transcript;
+          }
+        }
+        if (interim) els.heardText.textContent = `… ${interim}`;
+      };
+      recog.onerror = (e) => {
+        state.listening = false;
+        if (e.error === 'no-speech' || e.error === 'aborted') {
+          setMic('', 'Bez vstupu — zkus znovu (🔁) nebo klikni tlačítko');
+        } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          setMic('error', 'Mikrofon zakázán — povol ho v prohlížeči');
+        } else {
+          setMic('error', 'Chyba: ' + e.error);
+        }
+      };
+      recog.onend = () => {
+        state.listening = false;
+        if (!state.paused && !state.speaking && state.currentIndex < state.tasks.length) {
+          // auto restart unless we just acted
+          // small delay handled by browser
+        }
+      };
+      recog.start();
+    } catch (e) {
+      setMic('error', 'Nelze spustit mikrofon: ' + e.message);
+    }
+  }
+
+  function stopListening() {
+    if (recog) {
+      try { recog.abort(); } catch (e) {}
+      recog = null;
+    }
+    state.listening = false;
+  }
+
+  function setMic(kind, text) {
+    els.micStatus.classList.remove('listening', 'error');
+    if (kind === 'listening') els.micStatus.classList.add('listening');
+    if (kind === 'error') els.micStatus.classList.add('error');
+    els.micText.textContent = text;
+  }
+
+  function normalize(s) {
+    return String(s).toLowerCase()
+      .replace(/[.,!?;:]/g, '')
+      .trim();
+  }
+
+  function parseCommand(raw) {
+    const text = normalize(raw);
+    if (!text) return null;
+    // Stop / finish
+    if (STOP_WORDS.some(w => text.includes(w))) return { type: 'stop' };
+    // Repeat
+    if (REPEAT_WORDS.some(w => text.includes(w))) return { type: 'repeat' };
+    // Skip
+    if (SKIP_WORDS.some(w => text.includes(w))) return { type: 'assign', cat: 0 };
+    // Digit
+    const digitMatch = text.match(/\b([1-6])\b/);
+    if (digitMatch) return { type: 'assign', cat: parseInt(digitMatch[1], 10) };
+    // Word number
+    for (const [word, num] of Object.entries(NUMBER_WORDS)) {
+      if (text === word || text.includes(' ' + word) || text.startsWith(word + ' ') || text === word) {
+        return { type: 'assign', cat: num };
+      }
+    }
+    // Category name match (substring or token)
+    let best = null;
+    state.categories.forEach((name, i) => {
+      const n = normalize(name);
+      if (!n) return;
+      if (text.includes(n) || n.includes(text)) {
+        const score = Math.min(text.length, n.length);
+        if (!best || score > best.score) best = { cat: i + 1, score };
+      }
+    });
+    if (best) return { type: 'assign', cat: best.cat };
+    return null;
+  }
+
+  function handleAction(a) {
+    if (!a) return;
+    if (a.type === 'stop') {
+      stopListening();
+      finish();
+      return;
+    }
+    if (a.type === 'repeat') {
+      stopListening();
+      const task = state.tasks[state.currentIndex];
+      speakAndListen(task);
+      return;
+    }
+    if (a.type === 'assign') {
+      assign(a.cat);
+    }
+  }
+
+  function assign(catNum) {
+    if (state.currentIndex >= state.tasks.length) return;
+    stopListening();
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    state.assignments[state.currentIndex] = catNum;
+    if (catNum >= 1 && catNum <= 6) {
+      els.heardText.textContent = `→ ${state.categories[catNum - 1]}`;
+    } else {
+      els.heardText.textContent = '→ přeskočeno';
+    }
+    state.currentIndex++;
+    setTimeout(() => nextTask(), 350);
+  }
+
+  els.repeatBtn.addEventListener('click', () => {
+    if (state.currentIndex >= state.tasks.length) return;
+    stopListening();
+    const task = state.tasks[state.currentIndex];
+    speakAndListen(task);
+  });
+
+  els.pauseListenBtn.addEventListener('click', () => {
+    state.paused = !state.paused;
+    if (state.paused) {
+      stopListening();
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+      els.pauseListenBtn.textContent = '▶️ Pokračovat';
+      setMic('', 'Pozastaveno');
+    } else {
+      els.pauseListenBtn.textContent = '⏸ Pauza';
+      const task = state.tasks[state.currentIndex];
+      if (task) speakAndListen(task);
+    }
+  });
+
+  els.finishEarlyBtn.addEventListener('click', () => {
+    if (state.currentIndex < state.tasks.length) {
+      if (!confirm(`Zbývá ${state.tasks.length - state.currentIndex} nezařazených úkolů. Opravdu ukončit?`)) return;
+    }
+    finish();
+  });
+
+  function finish() {
+    stopListening();
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    renderSummary();
+    showStage('summary');
+  }
+
+  // ---------- Summary ----------
+  function groupByCategory() {
+    const groups = state.categories.map(() => []);
+    const skipped = [];
+    state.tasks.forEach((task, i) => {
+      const cat = state.assignments[i];
+      if (cat >= 1 && cat <= 6) groups[cat - 1].push(task);
+      else skipped.push(task);
+    });
+    return { groups, skipped };
+  }
+
+  function renderSummary() {
+    const { groups, skipped } = groupByCategory();
+    els.summaryList.innerHTML = '';
+    state.categories.forEach((name, i) => {
+      const tasks = groups[i];
+      const div = document.createElement('div');
+      div.className = 'summary-cat' + (tasks.length === 0 ? ' empty' : '');
+      const items = tasks.length
+        ? tasks.map(t => `<li>${escapeHtml(t)}</li>`).join('')
+        : '<li>(žádné úkoly)</li>';
+      div.innerHTML = `
+        <h3>${i + 1}. ${escapeHtml(name)} <span class="badge">${tasks.length}</span></h3>
+        <ul>${items}</ul>
+      `;
+      els.summaryList.appendChild(div);
+    });
+    if (skipped.length > 0) {
+      const div = document.createElement('div');
+      div.className = 'summary-cat';
+      div.innerHTML = `
+        <h3>Nezařazené <span class="badge">${skipped.length}</span></h3>
+        <ul>${skipped.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>
+      `;
+      els.summaryList.appendChild(div);
+    }
+  }
+
+  // ---------- Word export ----------
+  // Generates HTML compatible with MS Word (saved as .doc).
+  function buildWordHTML() {
+    const { groups, skipped } = groupByCategory();
+    const date = new Date().toLocaleDateString('cs-CZ');
+    let body = `<h1 style="font-family:Calibri,Arial,sans-serif; color:#1F3A5F;">Rozdělené úkoly</h1>`;
+    body += `<p style="color:#6B6B6B; font-family:Calibri,Arial,sans-serif;">Vytvořeno ${escapeHtml(date)}</p>`;
+    state.categories.forEach((name, i) => {
+      const tasks = groups[i];
+      body += `<h2 style="font-family:Calibri,Arial,sans-serif; color:#1F3A5F; border-bottom:1pt solid #C9A961; padding-bottom:3pt;">${i + 1}. ${escapeHtml(name)} (${tasks.length})</h2>`;
+      if (tasks.length === 0) {
+        body += `<p style="font-style:italic; color:#999; font-family:Calibri,Arial,sans-serif;">— žádné úkoly —</p>`;
+      } else {
+        body += `<ul style="font-family:Calibri,Arial,sans-serif; font-size:11pt;">`;
+        tasks.forEach(t => { body += `<li>${escapeHtml(t)}</li>`; });
+        body += `</ul>`;
+      }
+    });
+    if (skipped.length > 0) {
+      body += `<h2 style="font-family:Calibri,Arial,sans-serif; color:#6B6B6B; border-bottom:1pt solid #ccc; padding-bottom:3pt;">Nezařazené (${skipped.length})</h2>`;
+      body += `<ul style="font-family:Calibri,Arial,sans-serif; font-size:11pt;">`;
+      skipped.forEach(t => { body += `<li>${escapeHtml(t)}</li>`; });
+      body += `</ul>`;
+    }
+    return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Rozdělené úkoly</title>
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  body { font-family: Calibri, Arial, sans-serif; }
+  @page { margin: 2cm; }
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+  }
+
+  function buildPlainText() {
+    const { groups, skipped } = groupByCategory();
+    let out = 'ROZDĚLENÉ ÚKOLY\n' + '='.repeat(40) + '\n\n';
+    state.categories.forEach((name, i) => {
+      const tasks = groups[i];
+      out += `${i + 1}. ${name.toUpperCase()} (${tasks.length})\n`;
+      out += '-'.repeat(40) + '\n';
+      if (tasks.length === 0) out += '  — žádné úkoly —\n';
+      else tasks.forEach(t => { out += `  • ${t}\n`; });
+      out += '\n';
+    });
+    if (skipped.length > 0) {
+      out += `NEZAŘAZENÉ (${skipped.length})\n` + '-'.repeat(40) + '\n';
+      skipped.forEach(t => { out += `  • ${t}\n`; });
+    }
+    return out;
+  }
+
+  els.downloadDocBtn.addEventListener('click', () => {
+    const html = buildWordHTML();
+    // UTF-8 BOM for Word's auto-detect
+    const blob = new Blob(['﻿', html], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `ukoly-${stamp}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  });
+
+  els.copyTextBtn.addEventListener('click', async () => {
+    const txt = buildPlainText();
+    try {
+      await navigator.clipboard.writeText(txt);
+      els.copyTextBtn.textContent = '✅ Zkopírováno';
+      setTimeout(() => { els.copyTextBtn.textContent = '📋 Zkopírovat text'; }, 1500);
+    } catch (e) {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); els.copyTextBtn.textContent = '✅ Zkopírováno'; }
+      catch (er) { alert('Nelze kopírovat, označ text ručně.'); }
+      document.body.removeChild(ta);
+      setTimeout(() => { els.copyTextBtn.textContent = '📋 Zkopírovat text'; }, 1500);
+    }
+  });
+
+  els.restartBtn.addEventListener('click', () => {
+    if (!confirm('Začít úplně znovu? Aktuální rozdělení se ztratí.')) return;
+    state.tasks = [];
+    state.assignments = [];
+    state.currentIndex = 0;
+    state.paused = false;
+    els.tasksInput.value = '';
+    els.dictateStatus.textContent = '';
+    showStage('setup');
+  });
+
+  // ---------- Init ----------
+  loadCategories();
+  renderCategories();
+  setupDictation();
+
+})();
+</script>
+</body>
+</html>
