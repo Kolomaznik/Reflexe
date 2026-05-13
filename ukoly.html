@@ -176,6 +176,20 @@
     border-color: var(--gold);
   }
   .cat-pick.is-active .num { color: #fff; }
+  .mins-row { gap: 6px; align-items: center; }
+  .mins-pick-list { display: flex; gap: 6px; flex: 1 1 auto; flex-wrap: wrap; }
+  .mins-pick {
+    background: #fff; color: var(--navy); border: 2px solid var(--navy);
+    padding: 6px 10px; font-size: 13px; font-weight: 600; border-radius: 6px;
+    cursor: pointer; line-height: 1.1;
+  }
+  .mins-pick.is-active { background: var(--gold); color: #fff; border-color: var(--gold); }
+  .grand-total {
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--gold);
+    text-align: right; font-weight: 700; color: var(--navy); font-size: 14px;
+  }
+  .grand-total:empty { display: none; }
   .summary-cat {
     margin-bottom: 16px;
   }
@@ -222,6 +236,11 @@
     font-weight: normal;
   }
   .task-row button.task-del:active { background: rgba(220,53,69,0.1); }
+  .task-row input.task-mins {
+    flex: 0 0 60px; font-size: 12px; padding: 4px 6px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text); text-align: right;
+  }
   .actions-bar {
     display: flex; gap: 10px; flex-wrap: wrap;
     margin-top: 16px;
@@ -265,7 +284,14 @@
 
   <div class="card">
     <h2>Přidat úkol</h2>
-    <div class="row">
+    <label class="field-label">Odhadovaný čas (pro nově přidané úkoly)</label>
+    <div class="row mins-row">
+      <div id="minsPickList" class="mins-pick-list"></div>
+      <input type="number" id="minsCustomInput" min="0" max="999" step="5"
+             placeholder="min" style="flex: 0 0 80px; text-align: right;">
+      <span style="color: var(--muted); font-size: 13px; flex: 0 0 auto;">min</span>
+    </div>
+    <div class="row" style="margin-top: 10px;">
       <input type="text" id="taskTextInput" placeholder="Napiš úkol a stiskni Přidat" style="flex: 1 1 200px;">
       <button id="addBtn" class="gold small" type="button" style="flex: 0 0 auto;">➕ Přidat</button>
     </div>
@@ -284,6 +310,7 @@
   <div class="card">
     <h2>Úkoly podle kategorií</h2>
     <div id="taskList"></div>
+    <div id="grandTotal" class="grand-total"></div>
     <div class="actions-bar">
       <button class="gold" id="downloadDocBtn" type="button">📄 Stáhnout Word</button>
       <button class="secondary" id="copyTextBtn" type="button">📋 Zkopírovat text</button>
@@ -303,11 +330,13 @@
 
   const DEFAULT_CATEGORIES = ['Práce', 'Osobní', 'Domácnost', 'Zdraví', 'Nákupy', 'Jiné'];
   const STORAGE_KEY = 'ukoly_state_v2';
+  const QUICK_MINS = [5, 15, 30, 60, 120];
 
   const state = {
     categories: [...DEFAULT_CATEGORIES],
-    tasks: [],            // [{ id, text, cat: 1..6 }]
+    tasks: [],            // [{ id, text, cat: 1..6, mins: integer >= 0 }]
     activeCategory: 1,
+    defaultMins: 30,      // default estimate (minutes) applied to newly added tasks
     dictating: false
   };
 
@@ -325,6 +354,9 @@
     ocrProgressText: $('ocrProgressText'),
     ocrProgressFill: $('ocrProgressFill'),
     taskList: $('taskList'),
+    grandTotal: $('grandTotal'),
+    minsPickList: $('minsPickList'),
+    minsCustomInput: $('minsCustomInput'),
     downloadDocBtn: $('downloadDocBtn'),
     copyTextBtn: $('copyTextBtn'),
     clearAllBtn: $('clearAllBtn'),
@@ -343,14 +375,31 @@
   function activeCatName() {
     return state.categories[state.activeCategory - 1] || '';
   }
+  function formatMins(n) {
+    n = Number(n) || 0;
+    if (n <= 0) return '—';
+    if (n < 60) return n + ' min';
+    const h = Math.floor(n / 60);
+    const m = n % 60;
+    return m === 0 ? h + ' h' : h + ' h ' + m + ' min';
+  }
+  function sumMins(tasks) {
+    return tasks.reduce((s, t) => s + (Number(t.mins) || 0), 0);
+  }
 
   // ---------- Persistence ----------
+  function coerceMins(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(99999, Math.floor(n));
+  }
   function saveAll() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         categories: state.categories,
         tasks: state.tasks,
-        activeCategory: state.activeCategory
+        activeCategory: state.activeCategory,
+        defaultMins: state.defaultMins
       }));
     } catch (e) {}
   }
@@ -370,11 +419,15 @@
           .map(t => ({
             id: (typeof t.id === 'string' && t.id) ? t.id : uid(),
             text: t.text.trim(),
-            cat: (Number.isInteger(t.cat) && t.cat >= 1 && t.cat <= 6) ? t.cat : 1
+            cat: (Number.isInteger(t.cat) && t.cat >= 1 && t.cat <= 6) ? t.cat : 1,
+            mins: coerceMins(t.mins)
           }));
       }
       if (Number.isInteger(data.activeCategory) && data.activeCategory >= 1 && data.activeCategory <= 6) {
         state.activeCategory = data.activeCategory;
+      }
+      if (data.defaultMins !== undefined) {
+        state.defaultMins = coerceMins(data.defaultMins);
       }
     } catch (e) {}
   }
@@ -427,11 +480,39 @@
     }
   }
 
+  // ---------- Render: default-estimate picker ----------
+  function renderMinsPicks() {
+    els.minsPickList.innerHTML = '';
+    QUICK_MINS.forEach(n => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mins-pick' + (state.defaultMins === n ? ' is-active' : '');
+      b.dataset.mins = String(n);
+      b.textContent = String(n);
+      b.addEventListener('click', () => setDefaultMins(n));
+      els.minsPickList.appendChild(b);
+    });
+  }
+
+  function setDefaultMins(n) {
+    state.defaultMins = coerceMins(n);
+    saveAll();
+    renderMinsPicks();
+    if (document.activeElement !== els.minsCustomInput) {
+      els.minsCustomInput.value = state.defaultMins ? String(state.defaultMins) : '';
+    }
+  }
+
   // ---------- Task CRUD ----------
   function addTask(text) {
     const t = (text || '').trim();
     if (!t) return false;
-    state.tasks.push({ id: uid(), text: t, cat: state.activeCategory });
+    state.tasks.push({
+      id: uid(),
+      text: t,
+      cat: state.activeCategory,
+      mins: state.defaultMins
+    });
     saveAll();
     renderTaskList();
     return true;
@@ -450,6 +531,14 @@
     const idx = state.tasks.findIndex(t => t.id === id);
     if (idx < 0) return;
     state.tasks.splice(idx, 1);
+    saveAll();
+    renderTaskList();
+  }
+
+  function updateTaskMins(id, mins) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return;
+    task.mins = coerceMins(mins);
     saveAll();
     renderTaskList();
   }
@@ -476,9 +565,13 @@
       const num = i + 1;
       return `<option value="${num}"${num === t.cat ? ' selected' : ''}>${num}. ${escapeHtml(name)}</option>`;
     }).join('');
+    const minsVal = (Number(t.mins) > 0) ? String(t.mins) : '';
     return `
       <li class="task-row">
         <span class="task-text">${escapeHtml(t.text)}</span>
+        <input type="number" class="task-mins" data-id="${escapeHtml(t.id)}"
+               value="${minsVal}" min="0" max="999" step="5"
+               placeholder="min" title="Odhad v minutách">
         <select class="task-move" data-id="${escapeHtml(t.id)}" title="Přesunout do jiné kategorie">${opts}</select>
         <button class="task-del" data-id="${escapeHtml(t.id)}" type="button" title="Smazat úkol">🗑</button>
       </li>
@@ -495,8 +588,12 @@
       const items = tasks.length
         ? tasks.map(taskRowHtml).join('')
         : '<li>(žádné úkoly)</li>';
+      const subtotal = sumMins(tasks);
+      const badge = tasks.length === 0
+        ? '0'
+        : `${tasks.length} · ${formatMins(subtotal)}`;
       div.innerHTML = `
-        <h3>${i + 1}. ${escapeHtml(name)} <span class="badge">${tasks.length}</span></h3>
+        <h3>${i + 1}. ${escapeHtml(name)} <span class="badge">${badge}</span></h3>
         <ul>${items}</ul>
       `;
       els.taskList.appendChild(div);
@@ -511,6 +608,17 @@
         deleteTask(e.currentTarget.dataset.id);
       });
     });
+    els.taskList.querySelectorAll('input.task-mins').forEach(inp => {
+      inp.addEventListener('change', (e) => {
+        updateTaskMins(e.target.dataset.id, e.target.value);
+      });
+    });
+    if (state.tasks.length === 0) {
+      els.grandTotal.textContent = '';
+    } else {
+      els.grandTotal.textContent =
+        `Celkem: ${state.tasks.length} úkolů · ${formatMins(sumMins(state.tasks))}`;
+    }
   }
 
   // ---------- Input: text ----------
@@ -692,15 +800,27 @@
     body += `<p style="color:#6B6B6B; font-family:Calibri,Arial,sans-serif;">Vytvořeno ${escapeHtml(date)}</p>`;
     state.categories.forEach((name, i) => {
       const tasks = groups[i];
-      body += `<h2 style="font-family:Calibri,Arial,sans-serif; color:#1F3A5F; border-bottom:1pt solid #C9A961; padding-bottom:3pt;">${i + 1}. ${escapeHtml(name)} (${tasks.length})</h2>`;
+      const subtotal = sumMins(tasks);
+      const heading = tasks.length === 0
+        ? `${i + 1}. ${escapeHtml(name)} (0)`
+        : `${i + 1}. ${escapeHtml(name)} (${tasks.length} · ${escapeHtml(formatMins(subtotal))})`;
+      body += `<h2 style="font-family:Calibri,Arial,sans-serif; color:#1F3A5F; border-bottom:1pt solid #C9A961; padding-bottom:3pt;">${heading}</h2>`;
       if (tasks.length === 0) {
         body += `<p style="font-style:italic; color:#999; font-family:Calibri,Arial,sans-serif;">— žádné úkoly —</p>`;
       } else {
         body += `<ul style="font-family:Calibri,Arial,sans-serif; font-size:11pt;">`;
-        tasks.forEach(t => { body += `<li>${escapeHtml(t.text)}</li>`; });
+        tasks.forEach(t => {
+          const minsTxt = (Number(t.mins) > 0)
+            ? ` <span style="color:#6B6B6B;">— ${escapeHtml(formatMins(t.mins))}</span>`
+            : '';
+          body += `<li>${escapeHtml(t.text)}${minsTxt}</li>`;
+        });
         body += `</ul>`;
       }
     });
+    if (state.tasks.length > 0) {
+      body += `<p style="font-family:Calibri,Arial,sans-serif; text-align:right; font-weight:bold; color:#1F3A5F; border-top:1pt solid #C9A961; padding-top:6pt;">Celkem: ${state.tasks.length} úkolů · ${escapeHtml(formatMins(sumMins(state.tasks)))}</p>`;
+    }
     return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
@@ -729,12 +849,26 @@
     let out = 'ÚKOLY PODLE KATEGORIÍ\n' + '='.repeat(40) + '\n\n';
     state.categories.forEach((name, i) => {
       const tasks = groups[i];
-      out += `${i + 1}. ${name.toUpperCase()} (${tasks.length})\n`;
+      const subtotal = sumMins(tasks);
+      const head = tasks.length === 0
+        ? `${i + 1}. ${name.toUpperCase()} (0)`
+        : `${i + 1}. ${name.toUpperCase()} (${tasks.length} · ${formatMins(subtotal)})`;
+      out += head + '\n';
       out += '-'.repeat(40) + '\n';
-      if (tasks.length === 0) out += '  — žádné úkoly —\n';
-      else tasks.forEach(t => { out += `  • ${t.text}\n`; });
+      if (tasks.length === 0) {
+        out += '  — žádné úkoly —\n';
+      } else {
+        tasks.forEach(t => {
+          const minsTxt = (Number(t.mins) > 0) ? `  (${formatMins(t.mins)})` : '';
+          out += `  • ${t.text}${minsTxt}\n`;
+        });
+      }
       out += '\n';
     });
+    if (state.tasks.length > 0) {
+      out += '='.repeat(40) + '\n';
+      out += `CELKEM: ${state.tasks.length} úkolů · ${formatMins(sumMins(state.tasks))}\n`;
+    }
     return out;
   }
 
@@ -775,10 +909,14 @@
 
   els.clearAllBtn.addEventListener('click', clearAll);
 
+  els.minsCustomInput.addEventListener('input', (e) => setDefaultMins(e.target.value));
+
   // ---------- Init ----------
   loadAll();
   renderCategories();
   renderCatPicks();
+  renderMinsPicks();
+  els.minsCustomInput.value = state.defaultMins ? String(state.defaultMins) : '';
   renderTaskList();
   setupDictation();
   setupOCR();
