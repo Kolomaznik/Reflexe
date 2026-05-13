@@ -112,7 +112,24 @@
   button:disabled { opacity: 0.45; cursor: not-allowed; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .row > * { flex: 1 1 auto; }
-  .cat-row { display: grid; grid-template-columns: 36px 1fr; gap: 10px; margin-bottom: 8px; align-items: center; }
+  .cat-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; margin-bottom: 8px; align-items: center; }
+  .cat-row .cat-del {
+    background: transparent; color: var(--red); border: none;
+    padding: 4px 8px; font-size: 18px; cursor: pointer; font-weight: normal;
+  }
+  .cat-row .cat-del:disabled { color: var(--border); cursor: not-allowed; }
+  .cat-add-row {
+    display: flex; gap: 6px; align-items: center;
+    margin: 14px 0 4px 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+  .cat-add-row input[type=text] { flex: 1 1 auto; }
+  .cat-add-row button {
+    flex: 0 0 auto;
+    background: var(--gold); color: #fff;
+    padding: 8px 12px; font-size: 13px; font-weight: 700; border-radius: 6px;
+  }
   .cat-num {
     display: flex; align-items: center; justify-content: center;
     width: 36px; height: 36px;
@@ -256,6 +273,71 @@
     color: #664D03; padding: 12px; border-radius: 8px;
     margin-bottom: 14px; font-size: 13px;
   }
+  .subcat-editor {
+    margin: -2px 0 12px 46px;
+    padding: 8px 10px;
+    background: #FCFBF7;
+    border-left: 3px solid var(--gold);
+    border-radius: 0 6px 6px 0;
+  }
+  .subcat-editor .subcat-label {
+    font-size: 11px; color: var(--muted); font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .subcat-edit-row {
+    display: flex; gap: 6px; align-items: center;
+    margin-bottom: 4px;
+  }
+  .subcat-edit-row input[type=text] {
+    flex: 1 1 auto; font-size: 13px; padding: 6px 8px;
+  }
+  .subcat-edit-row button {
+    flex: 0 0 auto;
+    background: transparent; color: var(--red); border: none;
+    padding: 4px 8px; font-size: 16px; cursor: pointer; font-weight: normal;
+  }
+  .subcat-edit-row button.subcat-add {
+    background: var(--gold); color: #fff; padding: 6px 10px;
+    font-size: 13px; font-weight: 700; border-radius: 6px;
+  }
+  #subcatPickList {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+  #subcatPickList:empty { display: none; }
+  .subcat-pick {
+    background: #fff; color: var(--navy); border: 2px solid var(--navy);
+    padding: 6px 10px; font-size: 13px; font-weight: 600; border-radius: 6px;
+    cursor: pointer; line-height: 1.1;
+  }
+  .subcat-pick.is-active { background: var(--gold); color: #fff; border-color: var(--gold); }
+  .subcat-pick.is-none { font-style: italic; }
+  .summary-subcat {
+    margin: 6px 0 8px 14px;
+    padding-left: 10px;
+    border-left: 2px solid var(--gold);
+  }
+  .summary-subcat h4 {
+    color: var(--navy);
+    margin: 0 0 4px;
+    font-size: 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .summary-subcat h4 .badge-sm {
+    background: var(--light-gold); color: var(--navy);
+    padding: 1px 6px; border-radius: 8px;
+    font-size: 11px; font-weight: 700;
+  }
+  .summary-subcat ul { margin: 0; padding-left: 18px; list-style: none; }
+  .task-row select.task-move-sub {
+    flex: 0 0 auto;
+    font-size: 12px; padding: 4px 6px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text);
+    max-width: 120px;
+  }
 </style>
 </head>
 <body>
@@ -280,6 +362,7 @@
     <h2>Aktivní kategorie</h2>
     <p style="color:var(--muted); font-size:13px; margin:0 0 10px;">Vyber, do které kategorie půjdou nově přidané úkoly.</p>
     <div id="catPickList" class="cat-pick-list"></div>
+    <div id="subcatPickList"></div>
   </div>
 
   <div class="card">
@@ -334,8 +417,10 @@
 
   const state = {
     categories: [...DEFAULT_CATEGORIES],
-    tasks: [],            // [{ id, text, cat: 1..6, mins: integer >= 0 }]
+    subcategories: [[], [], [], [], [], []],  // per main category: [{id, name}, ...]
+    tasks: [],            // [{ id, text, cat: 1..6, subcat: string|null, mins: integer >= 0 }]
     activeCategory: 1,
+    activeSubcat: null,   // id of currently selected subcategory for new tasks
     defaultMins: 30,      // default estimate (minutes) applied to newly added tasks
     dictating: false
   };
@@ -344,6 +429,7 @@
   const els = {
     categoriesList: $('categoriesList'),
     catPickList: $('catPickList'),
+    subcatPickList: $('subcatPickList'),
     taskTextInput: $('taskTextInput'),
     addBtn: $('addBtn'),
     dictateBtn: $('dictateBtn'),
@@ -397,8 +483,10 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         categories: state.categories,
+        subcategories: state.subcategories,
         tasks: state.tasks,
         activeCategory: state.activeCategory,
+        activeSubcat: state.activeSubcat,
         defaultMins: state.defaultMins
       }));
     } catch (e) {}
@@ -408,23 +496,45 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (Array.isArray(data.categories) && data.categories.length === 6) {
+      if (Array.isArray(data.categories) && data.categories.length >= 1) {
         state.categories = data.categories.map((s, i) =>
-          String(s || DEFAULT_CATEGORIES[i]).trim() || DEFAULT_CATEGORIES[i]
+          String(s || DEFAULT_CATEGORIES[i] || `Kategorie ${i + 1}`).trim() ||
+          DEFAULT_CATEGORIES[i] || `Kategorie ${i + 1}`
         );
       }
+      // Pad / truncate subcategories to match categories.length
+      if (Array.isArray(data.subcategories)) {
+        const loaded = data.subcategories.map(arr =>
+          Array.isArray(arr)
+            ? arr
+                .filter(s => s && typeof s.name === 'string' && s.name.trim())
+                .map(s => ({
+                  id: (typeof s.id === 'string' && s.id) ? s.id : uid(),
+                  name: s.name.trim()
+                }))
+            : []
+        );
+        state.subcategories = state.categories.map((_, i) => loaded[i] || []);
+      } else {
+        state.subcategories = state.categories.map(() => []);
+      }
+      const N = state.categories.length;
       if (Array.isArray(data.tasks)) {
         state.tasks = data.tasks
           .filter(t => t && typeof t.text === 'string' && t.text.trim())
           .map(t => ({
             id: (typeof t.id === 'string' && t.id) ? t.id : uid(),
             text: t.text.trim(),
-            cat: (Number.isInteger(t.cat) && t.cat >= 1 && t.cat <= 6) ? t.cat : 1,
+            cat: (Number.isInteger(t.cat) && t.cat >= 1 && t.cat <= N) ? t.cat : 1,
+            subcat: (typeof t.subcat === 'string' && t.subcat) ? t.subcat : null,
             mins: coerceMins(t.mins)
           }));
       }
-      if (Number.isInteger(data.activeCategory) && data.activeCategory >= 1 && data.activeCategory <= 6) {
+      if (Number.isInteger(data.activeCategory) && data.activeCategory >= 1 && data.activeCategory <= N) {
         state.activeCategory = data.activeCategory;
+      }
+      if (typeof data.activeSubcat === 'string' && data.activeSubcat) {
+        state.activeSubcat = data.activeSubcat;
       }
       if (data.defaultMins !== undefined) {
         state.defaultMins = coerceMins(data.defaultMins);
@@ -435,24 +545,212 @@
   // ---------- Render: category names editor ----------
   function renderCategories() {
     els.categoriesList.innerHTML = '';
+    const onlyOne = state.categories.length <= 1;
     state.categories.forEach((name, i) => {
       const row = document.createElement('div');
       row.className = 'cat-row';
+      const delTitle = onlyOne
+        ? 'Musí zůstat alespoň jedna kategorie.'
+        : 'Smazat kategorii';
       row.innerHTML = `
         <div class="cat-num">${i + 1}</div>
         <input type="text" data-cat="${i}" value="${escapeHtml(name)}" maxlength="40">
+        <button type="button" class="cat-del" data-cat-del="${i}"
+                title="${escapeHtml(delTitle)}"${onlyOne ? ' disabled' : ''}>🗑</button>
       `;
       els.categoriesList.appendChild(row);
+
+      const editor = document.createElement('div');
+      editor.className = 'subcat-editor';
+      const subs = state.subcategories[i] || [];
+      const rowsHtml = subs.map(s => `
+        <div class="subcat-edit-row">
+          <input type="text" data-sub-edit="${escapeHtml(s.id)}" data-cat-idx="${i}"
+                 value="${escapeHtml(s.name)}" maxlength="40">
+          <button type="button" data-sub-del="${escapeHtml(s.id)}" data-cat-idx="${i}"
+                  title="Smazat podkategorii">🗑</button>
+        </div>
+      `).join('');
+      editor.innerHTML = `
+        <div class="subcat-label">Podkategorie (${subs.length})</div>
+        ${rowsHtml}
+        <div class="subcat-edit-row">
+          <input type="text" data-sub-new="${i}" placeholder="Nová podkategorie..." maxlength="40">
+          <button type="button" class="subcat-add" data-sub-add="${i}">+ Přidat</button>
+        </div>
+      `;
+      els.categoriesList.appendChild(editor);
     });
+
+    const addRow = document.createElement('div');
+    addRow.className = 'cat-add-row';
+    addRow.innerHTML = `
+      <input type="text" id="catNewInput" placeholder="Nová kategorie..." maxlength="40">
+      <button type="button" id="catAddBtn">+ Přidat kategorii</button>
+    `;
+    els.categoriesList.appendChild(addRow);
+
     els.categoriesList.querySelectorAll('input[data-cat]').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = parseInt(e.target.dataset.cat, 10);
-        state.categories[idx] = e.target.value.trim() || DEFAULT_CATEGORIES[idx];
+        state.categories[idx] = e.target.value.trim() ||
+          DEFAULT_CATEGORIES[idx] || `Kategorie ${idx + 1}`;
         saveAll();
         renderCatPicks();
         renderTaskList();
       });
     });
+    els.categoriesList.querySelectorAll('input[data-sub-edit]').forEach(input => {
+      const original = input.value;
+      let last = original;
+      input.addEventListener('change', (e) => {
+        const id = e.target.dataset.subEdit;
+        const catIdx = parseInt(e.target.dataset.catIdx, 10);
+        const newName = e.target.value.trim();
+        if (!newName) {
+          e.target.value = last;
+          return;
+        }
+        const sub = (state.subcategories[catIdx] || []).find(s => s.id === id);
+        if (sub) {
+          sub.name = newName;
+          last = newName;
+          saveAll();
+          renderSubcatPicks();
+          renderTaskList();
+        }
+      });
+    });
+    els.categoriesList.querySelectorAll('button[data-sub-del]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.subDel;
+        const catIdx = parseInt(e.currentTarget.dataset.catIdx, 10);
+        deleteSubcategory(catIdx, id);
+      });
+    });
+    els.categoriesList.querySelectorAll('button[data-sub-add]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const catIdx = parseInt(e.currentTarget.dataset.subAdd, 10);
+        const input = els.categoriesList.querySelector(`input[data-sub-new="${catIdx}"]`);
+        if (!input) return;
+        if (addSubcategory(catIdx, input.value)) {
+          const fresh = els.categoriesList.querySelector(`input[data-sub-new="${catIdx}"]`);
+          if (fresh) fresh.focus();
+        } else {
+          input.focus();
+        }
+      });
+    });
+    els.categoriesList.querySelectorAll('input[data-sub-new]').forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const catIdx = parseInt(e.target.dataset.subNew, 10);
+          if (addSubcategory(catIdx, e.target.value)) {
+            const fresh = els.categoriesList.querySelector(`input[data-sub-new="${catIdx}"]`);
+            if (fresh) fresh.focus();
+          }
+        }
+      });
+    });
+    els.categoriesList.querySelectorAll('button[data-cat-del]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.dataset.catDel, 10);
+        deleteCategory(idx);
+      });
+    });
+    const newInput = document.getElementById('catNewInput');
+    const addBtn = document.getElementById('catAddBtn');
+    const tryAdd = () => {
+      if (!newInput) return;
+      if (addCategory(newInput.value)) {
+        const fresh = document.getElementById('catNewInput');
+        if (fresh) { fresh.value = ''; fresh.focus(); }
+      } else if (newInput) {
+        newInput.focus();
+      }
+    };
+    if (addBtn) addBtn.addEventListener('click', tryAdd);
+    if (newInput) {
+      newInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); tryAdd(); }
+      });
+    }
+  }
+
+  function addCategory(name) {
+    const n = (name || '').trim();
+    if (!n) return false;
+    state.categories.push(n);
+    state.subcategories.push([]);
+    saveAll();
+    renderCategories();
+    renderCatPicks();
+    renderSubcatPicks();
+    renderTaskList();
+    return true;
+  }
+
+  function deleteCategory(idx) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= state.categories.length) return;
+    if (state.categories.length <= 1) {
+      alert('Musí zůstat alespoň jedna kategorie.');
+      return;
+    }
+    const name = state.categories[idx];
+    const k = idx + 1;
+    const taskCount = state.tasks.filter(t => t.cat === k).length;
+    const subCount = (state.subcategories[idx] || []).length;
+    if (!confirm(`Smazat kategorii „${name}"?\n\nSmaže se ${taskCount} úkolů a ${subCount} podkategorií.`)) return;
+
+    state.categories.splice(idx, 1);
+    state.subcategories.splice(idx, 1);
+    state.tasks = state.tasks
+      .filter(t => t.cat !== k)
+      .map(t => t.cat > k ? { ...t, cat: t.cat - 1 } : t);
+
+    if (state.activeCategory === k) {
+      state.activeCategory = 1;
+      state.activeSubcat = null;
+    } else if (state.activeCategory > k) {
+      state.activeCategory -= 1;
+    }
+    if (state.activeCategory > state.categories.length) {
+      state.activeCategory = state.categories.length;
+    }
+
+    saveAll();
+    renderCategories();
+    renderCatPicks();
+    renderSubcatPicks();
+    renderTaskList();
+  }
+
+  function addSubcategory(catIdx, name) {
+    const n = (name || '').trim();
+    if (!n) return false;
+    if (!Number.isInteger(catIdx) || catIdx < 0 || catIdx >= state.categories.length) return false;
+    state.subcategories[catIdx].push({ id: uid(), name: n });
+    saveAll();
+    renderCategories();
+    renderSubcatPicks();
+    renderTaskList();
+    return true;
+  }
+
+  function deleteSubcategory(catIdx, id) {
+    if (!Number.isInteger(catIdx) || catIdx < 0 || catIdx >= state.categories.length) return;
+    const arr = state.subcategories[catIdx];
+    const idx = arr.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    arr.splice(idx, 1);
+    if (state.activeCategory === catIdx + 1 && state.activeSubcat === id) {
+      state.activeSubcat = null;
+    }
+    saveAll();
+    renderCategories();
+    renderSubcatPicks();
+    renderTaskList();
   }
 
   // ---------- Render: active category picker ----------
@@ -471,13 +769,44 @@
   }
 
   function setActiveCategory(num) {
-    if (!(Number.isInteger(num) && num >= 1 && num <= 6)) return;
+    if (!(Number.isInteger(num) && num >= 1 && num <= state.categories.length)) return;
     state.activeCategory = num;
+    state.activeSubcat = null;
     saveAll();
     renderCatPicks();
+    renderSubcatPicks();
     if (state.dictating) {
       els.dictateStatus.textContent = `Poslouchám — nadiktuj úkol, pauza pro další (kategorie: ${activeCatName()}).`;
     }
+  }
+
+  // ---------- Render: active subcategory picker ----------
+  function renderSubcatPicks() {
+    els.subcatPickList.innerHTML = '';
+    const subs = state.subcategories[state.activeCategory - 1] || [];
+    if (subs.length === 0) return;
+
+    const noneBtn = document.createElement('button');
+    noneBtn.type = 'button';
+    noneBtn.className = 'subcat-pick is-none' + (state.activeSubcat === null ? ' is-active' : '');
+    noneBtn.textContent = '— bez podkategorie';
+    noneBtn.addEventListener('click', () => setActiveSubcat(null));
+    els.subcatPickList.appendChild(noneBtn);
+
+    subs.forEach(s => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'subcat-pick' + (state.activeSubcat === s.id ? ' is-active' : '');
+      b.textContent = s.name;
+      b.addEventListener('click', () => setActiveSubcat(s.id));
+      els.subcatPickList.appendChild(b);
+    });
+  }
+
+  function setActiveSubcat(id) {
+    state.activeSubcat = id;
+    saveAll();
+    renderSubcatPicks();
   }
 
   // ---------- Render: default-estimate picker ----------
@@ -511,6 +840,7 @@
       id: uid(),
       text: t,
       cat: state.activeCategory,
+      subcat: state.activeSubcat,
       mins: state.defaultMins
     });
     saveAll();
@@ -519,10 +849,25 @@
   }
 
   function moveTask(id, newCat) {
-    if (!(Number.isInteger(newCat) && newCat >= 1 && newCat <= 6)) return;
+    if (!(Number.isInteger(newCat) && newCat >= 1 && newCat <= state.categories.length)) return;
     const task = state.tasks.find(t => t.id === id);
     if (!task) return;
+    if (task.cat !== newCat) task.subcat = null;
     task.cat = newCat;
+    saveAll();
+    renderTaskList();
+  }
+
+  function moveTaskSubcat(id, newSubcat) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return;
+    if (newSubcat === null) {
+      task.subcat = null;
+    } else {
+      const subs = state.subcategories[task.cat - 1] || [];
+      if (!subs.some(s => s.id === newSubcat)) return;
+      task.subcat = newSubcat;
+    }
     saveAll();
     renderTaskList();
   }
@@ -560,12 +905,40 @@
     return groups;
   }
 
+  // For one category's task array, split into { noSub, bySubId: Map }.
+  // Tasks with a stale subcat id (no longer exists) are treated as noSub.
+  function groupBySubcategory(tasks, catIdx) {
+    const subs = state.subcategories[catIdx] || [];
+    const validIds = new Set(subs.map(s => s.id));
+    const noSub = [];
+    const bySubId = new Map();
+    subs.forEach(s => bySubId.set(s.id, []));
+    tasks.forEach(t => {
+      if (t.subcat && validIds.has(t.subcat)) {
+        bySubId.get(t.subcat).push(t);
+      } else {
+        noSub.push(t);
+      }
+    });
+    return { noSub, bySubId };
+  }
+
   function taskRowHtml(t) {
     const opts = state.categories.map((name, i) => {
       const num = i + 1;
       return `<option value="${num}"${num === t.cat ? ' selected' : ''}>${num}. ${escapeHtml(name)}</option>`;
     }).join('');
     const minsVal = (Number(t.mins) > 0) ? String(t.mins) : '';
+    const subs = state.subcategories[t.cat - 1] || [];
+    let subSelectHtml = '';
+    if (subs.length > 0) {
+      const currentSubIsValid = subs.some(s => s.id === t.subcat);
+      const subOpts = `<option value="">— bez podkat.</option>` +
+        subs.map(s =>
+          `<option value="${escapeHtml(s.id)}"${currentSubIsValid && s.id === t.subcat ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
+        ).join('');
+      subSelectHtml = `<select class="task-move-sub" data-id="${escapeHtml(t.id)}" title="Přesunout do jiné podkategorie">${subOpts}</select>`;
+    }
     return `
       <li class="task-row">
         <span class="task-text">${escapeHtml(t.text)}</span>
@@ -573,6 +946,7 @@
                value="${minsVal}" min="0" max="999" step="5"
                placeholder="min" title="Odhad v minutách">
         <select class="task-move" data-id="${escapeHtml(t.id)}" title="Přesunout do jiné kategorie">${opts}</select>
+        ${subSelectHtml}
         <button class="task-del" data-id="${escapeHtml(t.id)}" type="button" title="Smazat úkol">🗑</button>
       </li>
     `;
@@ -585,22 +959,47 @@
       const tasks = groups[i];
       const div = document.createElement('div');
       div.className = 'summary-cat' + (tasks.length === 0 ? ' empty' : '');
-      const items = tasks.length
-        ? tasks.map(taskRowHtml).join('')
-        : '<li>(žádné úkoly)</li>';
       const subtotal = sumMins(tasks);
       const badge = tasks.length === 0
         ? '0'
         : `${tasks.length} · ${formatMins(subtotal)}`;
+
+      let bodyHtml = '';
+      if (tasks.length === 0) {
+        bodyHtml = `<ul><li>(žádné úkoly)</li></ul>`;
+      } else {
+        const { noSub, bySubId } = groupBySubcategory(tasks, i);
+        if (noSub.length > 0) {
+          bodyHtml += `<ul>${noSub.map(taskRowHtml).join('')}</ul>`;
+        }
+        (state.subcategories[i] || []).forEach(sub => {
+          const subTasks = bySubId.get(sub.id) || [];
+          if (subTasks.length === 0) return;
+          const subSum = sumMins(subTasks);
+          bodyHtml += `
+            <div class="summary-subcat">
+              <h4>${escapeHtml(sub.name)} <span class="badge-sm">${subTasks.length} · ${formatMins(subSum)}</span></h4>
+              <ul>${subTasks.map(taskRowHtml).join('')}</ul>
+            </div>
+          `;
+        });
+      }
+
       div.innerHTML = `
         <h3>${i + 1}. ${escapeHtml(name)} <span class="badge">${badge}</span></h3>
-        <ul>${items}</ul>
+        ${bodyHtml}
       `;
       els.taskList.appendChild(div);
     });
     els.taskList.querySelectorAll('select.task-move').forEach(sel => {
       sel.addEventListener('change', (e) => {
         moveTask(e.target.dataset.id, parseInt(e.target.value, 10));
+      });
+    });
+    els.taskList.querySelectorAll('select.task-move-sub').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const val = e.target.value;
+        moveTaskSubcat(e.target.dataset.id, val === '' ? null : val);
       });
     });
     els.taskList.querySelectorAll('button.task-del').forEach(btn => {
@@ -798,6 +1197,17 @@
     const date = new Date().toLocaleDateString('cs-CZ');
     let body = `<h1 style="font-family:Calibri,Arial,sans-serif; color:#1F3A5F;">Úkoly podle kategorií</h1>`;
     body += `<p style="color:#6B6B6B; font-family:Calibri,Arial,sans-serif;">Vytvořeno ${escapeHtml(date)}</p>`;
+    const renderTaskItems = (tasksArr) => {
+      let out = `<ul style="font-family:Calibri,Arial,sans-serif; font-size:11pt;">`;
+      tasksArr.forEach(t => {
+        const minsTxt = (Number(t.mins) > 0)
+          ? ` <span style="color:#6B6B6B;">— ${escapeHtml(formatMins(t.mins))}</span>`
+          : '';
+        out += `<li>${escapeHtml(t.text)}${minsTxt}</li>`;
+      });
+      out += `</ul>`;
+      return out;
+    };
     state.categories.forEach((name, i) => {
       const tasks = groups[i];
       const subtotal = sumMins(tasks);
@@ -808,14 +1218,15 @@
       if (tasks.length === 0) {
         body += `<p style="font-style:italic; color:#999; font-family:Calibri,Arial,sans-serif;">— žádné úkoly —</p>`;
       } else {
-        body += `<ul style="font-family:Calibri,Arial,sans-serif; font-size:11pt;">`;
-        tasks.forEach(t => {
-          const minsTxt = (Number(t.mins) > 0)
-            ? ` <span style="color:#6B6B6B;">— ${escapeHtml(formatMins(t.mins))}</span>`
-            : '';
-          body += `<li>${escapeHtml(t.text)}${minsTxt}</li>`;
+        const { noSub, bySubId } = groupBySubcategory(tasks, i);
+        if (noSub.length > 0) body += renderTaskItems(noSub);
+        (state.subcategories[i] || []).forEach(sub => {
+          const subTasks = bySubId.get(sub.id) || [];
+          if (subTasks.length === 0) return;
+          const subSum = sumMins(subTasks);
+          body += `<h3 style="font-family:Calibri,Arial,sans-serif; color:#1F3A5F; margin:8pt 0 4pt 12pt; font-size:12pt;">${escapeHtml(sub.name)} <span style="color:#6B6B6B; font-weight:normal; font-size:10pt;">(${subTasks.length} · ${escapeHtml(formatMins(subSum))})</span></h3>`;
+          body += `<div style="margin-left:12pt;">${renderTaskItems(subTasks)}</div>`;
         });
-        body += `</ul>`;
       }
     });
     if (state.tasks.length > 0) {
@@ -847,6 +1258,12 @@
   function buildPlainText() {
     const groups = groupByCategory();
     let out = 'ÚKOLY PODLE KATEGORIÍ\n' + '='.repeat(40) + '\n\n';
+    const writeTasks = (tasksArr, indent) => {
+      tasksArr.forEach(t => {
+        const minsTxt = (Number(t.mins) > 0) ? `  (${formatMins(t.mins)})` : '';
+        out += `${indent}• ${t.text}${minsTxt}\n`;
+      });
+    };
     state.categories.forEach((name, i) => {
       const tasks = groups[i];
       const subtotal = sumMins(tasks);
@@ -858,9 +1275,14 @@
       if (tasks.length === 0) {
         out += '  — žádné úkoly —\n';
       } else {
-        tasks.forEach(t => {
-          const minsTxt = (Number(t.mins) > 0) ? `  (${formatMins(t.mins)})` : '';
-          out += `  • ${t.text}${minsTxt}\n`;
+        const { noSub, bySubId } = groupBySubcategory(tasks, i);
+        writeTasks(noSub, '  ');
+        (state.subcategories[i] || []).forEach(sub => {
+          const subTasks = bySubId.get(sub.id) || [];
+          if (subTasks.length === 0) return;
+          const subSum = sumMins(subTasks);
+          out += `  ▸ ${sub.name} (${subTasks.length} · ${formatMins(subSum)})\n`;
+          writeTasks(subTasks, '      ');
         });
       }
       out += '\n';
@@ -915,6 +1337,7 @@
   loadAll();
   renderCategories();
   renderCatPicks();
+  renderSubcatPicks();
   renderMinsPicks();
   els.minsCustomInput.value = state.defaultMins ? String(state.defaultMins) : '';
   renderTaskList();
