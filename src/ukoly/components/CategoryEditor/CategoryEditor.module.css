@@ -1,0 +1,116 @@
+.catRow {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.catNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 50%;
+  font-weight: 700;
+}
+.catRow input[type='text'] {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #FCFBF7;
+  color: var(--text);
+}
+.catRow input[type='text']:focus {
+  border-color: var(--gold);
+  background: #fff;
+}
+.catDel {
+  background: transparent;
+  color: var(--red);
+  border: none;
+  padding: 4px 8px;
+  font-size: 18px;
+  font-weight: normal;
+}
+.catDel:disabled {
+  color: var(--border);
+}
+
+.subcatEditor {
+  margin: -2px 0 12px 46px;
+  padding: 8px 10px;
+  background: #FCFBF7;
+  border-left: 3px solid var(--gold);
+  border-radius: 0 6px 6px 0;
+}
+.subcatLabel {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.subcatEditRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.subcatEditRow input[type='text'] {
+  flex: 1 1 auto;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #FCFBF7;
+}
+.subcatEditRow .subDel {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--red);
+  border: none;
+  padding: 4px 8px;
+  font-size: 16px;
+}
+.subcatEditRow .subAdd {
+  flex: 0 0 auto;
+  background: var(--gold);
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+}
+
+.catAddRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 14px 0 4px 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.catAddRow input[type='text'] {
+  flex: 1 1 auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #FCFBF7;
+}
+.catAddRow .add {
+  flex: 0 0 auto;
+  background: var(--gold);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+}

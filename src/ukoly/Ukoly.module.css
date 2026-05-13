@@ -1,0 +1,91 @@
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 16px 80px;
+}
+
+.header {
+  text-align: center;
+  padding: 16px 0 24px;
+  border-bottom: 2px solid var(--gold);
+  margin-bottom: 20px;
+}
+.header h1 {
+  margin: 0 0 4px;
+  color: var(--navy);
+  font-size: 24px;
+  letter-spacing: 0.5px;
+}
+.header .subtitle {
+  color: var(--gold);
+  font-style: italic;
+  font-size: 15px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.card h2 {
+  color: var(--navy);
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.cardDetails {
+  cursor: pointer;
+}
+.cardDetails > summary {
+  cursor: pointer;
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 15px;
+  list-style: none;
+}
+.cardDetails > summary::-webkit-details-marker {
+  display: none;
+}
+.cardDetails > summary::before {
+  content: '▸ ';
+  color: var(--gold);
+  display: inline-block;
+  width: 16px;
+}
+.cardDetails[open] > summary::before {
+  content: '▾ ';
+}
+.cardDetails[open] > summary {
+  margin-bottom: 12px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+.footerNav {
+  text-align: center;
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.footerNav a {
+  color: var(--navy);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--gold);
+}
+
+.noSupport {
+  background: #FFF3CD;
+  border: 1px solid #FFE69C;
+  color: #664D03;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}

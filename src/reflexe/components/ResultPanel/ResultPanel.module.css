@@ -1,0 +1,80 @@
+.result {
+  background: var(--card);
+  border: 2px solid var(--green);
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 20px;
+}
+.result h2 {
+  color: var(--green);
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+.result p {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.result pre {
+  background: #F8F7F2;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.statusBox {
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.statusBox.sending {
+  background: #FFF3CD;
+  color: #856404;
+  border: 1px solid #FFE69C;
+}
+.statusBox.ok {
+  background: #D4EDDA;
+  color: #155724;
+  border: 1px solid #C3E6CB;
+}
+.statusBox.offline {
+  background: #F8D7DA;
+  color: #721C24;
+  border: 1px solid #F5C6CB;
+}
+.statusBox.info {
+  background: #D1ECF1;
+  color: #0C5460;
+  border: 1px solid #BEE5EB;
+}
+.actions button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+}
+.gold {
+  background: var(--gold);
+  color: #fff;
+}
+.secondary {
+  background: #fff;
+  color: var(--navy);
+  border: 2px solid var(--navy) !important;
+}
+.navy {
+  background: var(--navy);
+  color: #fff;
+}

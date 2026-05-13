@@ -1,0 +1,29 @@
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+}
+.btn {
+  flex: 0 0 auto;
+  background: #fff;
+  color: var(--navy);
+  border: 2px solid var(--navy);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+}
+.btn.active {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+.status {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  margin: 6px 0;
+  min-height: 18px;
+}

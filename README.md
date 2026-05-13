@@ -1,87 +1,97 @@
-# Reflexe bloku – PWA pro Android
+# Reflexe bloku + Úkoly podle kategorií — PWA
 
-Progressive Web App pro rychlou reflexi každého 2hodinového pracovního bloku. Nainstaluje se jako normální appka (ikona na ploše, funguje offline), po vyplnění ti zkopíruje JSON do schránky — vložíš ho do Claude chatu a on ti to zapíše do deníku.
+Two-page Progressive Web App built with **Vite + React**:
 
-## Co je v balíčku
+- **`/index.html`** — *Reflexe bloku*: 8-question reflection form, optional Google Apps Script webhook, offline queue + local history, 2-hour reminder notifications.
+- **`/ukoly.html`** — *Úkoly podle kategorií*: dynamic main categories + per-category subcategories, free-form task list with minutes estimate, voice dictation (Web Speech API, `cs-CZ`), OCR import via Tesseract.js, Word / plain-text export.
+
+Both pages share the navy / gold visual theme and the same PWA shell (manifest + Workbox service worker via `vite-plugin-pwa`).
+
+## Stack
+
+- React 18 (JavaScript, no TypeScript)
+- Zustand for state (with raw `localStorage` for legacy-key compatibility)
+- CSS Modules per component, shared CSS custom properties in [src/shared/styles/theme.css](src/shared/styles/theme.css)
+- Vitest + React Testing Library for tests
+- `vite-plugin-pwa` (Workbox) for the service worker and asset precaching
+
+## Repository layout
 
 ```
-android-app/
-├── index.html              # Hlavní formulář (8 otázek) + webhook integrace
-├── manifest.webmanifest    # PWA manifest (ikona, barvy, jméno)
-├── sw.js                   # Service worker (offline + notifikace)
-├── icon-192.png            # Ikona 192×192
-├── icon-512.png            # Ikona 512×512
-├── icon-maskable-512.png   # Maskable ikona (Android adaptive)
-├── reflexe-kalendar.ics    # Záložní připomínky pro Google Kalendář
-├── apps-script.gs          # Kód Google Apps Script (webhook → Sheet)
-├── NAVOD-GOOGLE-SHEET.md   # Návod na auto-ukládání do Google Sheetu
-└── README.md               # Tento soubor
+/
+├── index.html                # Vite entry — mounts <Reflexe/>
+├── ukoly.html                # Vite entry — mounts <Ukoly/>
+├── public/                   # Static assets served at root (icons, manifest, .ics)
+├── src/
+│   ├── main-reflexe.jsx
+│   ├── main-ukoly.jsx
+│   ├── shared/               # Shared theme, helpers (escapeHtml, uid)
+│   ├── reflexe/              # Reflection page: lib + store + components
+│   └── ukoly/                # Tasks page: lib + store + components
+├── tests/
+│   └── setup.js              # jsdom polyfills: SpeechRecognition mock, clipboard, etc.
+├── vite.config.js
+├── package.json
+├── apps-script.gs            # Google Apps Script webhook (server-side; unchanged)
+└── NAVOD-GOOGLE-SHEET.md     # Setup guide for the webhook integration
 ```
 
-## Auto-ukládání do Google Sheetu (doporučeno)
+## Develop
 
-Po nastavení se každá reflexe **automaticky zapíše** do Google Sheetu bez ručního kopírování JSON do chatu. Návod: viz [NAVOD-GOOGLE-SHEET.md](NAVOD-GOOGLE-SHEET.md).
+```bash
+npm install
+npm run dev          # Vite dev server (auto-reload)
+npm run build        # Production build into dist/
+npm run preview      # Preview the production build locally
+```
 
-## Jak to rozchodit – 3 kroky
+Open `http://localhost:5173/` for the reflection form, `http://localhost:5173/ukoly.html` for the tasks page.
 
-### 1. Nahraj soubory na GitHub Pages (nejrychlejší, zdarma)
+## Test
 
-1. Jdi na [github.com](https://github.com) a přihlas se (nebo si založ účet).
-2. Klikni na **New repository** → název třeba `reflexe` → **Public** → **Create**.
-3. Klikni **uploading an existing file** → přetáhni všechny soubory z této složky (kromě README, ale klidně i s ním).
-4. Po uploadu klikni **Settings → Pages** (v levém menu).
-5. U „Source" vyber **Deploy from a branch** → **main** → **/ (root)** → **Save**.
-6. Po minutě se objeví URL ve tvaru `https://tvuj-username.github.io/reflexe/`. To je adresa tvé appky.
+```bash
+npm test             # Watch mode
+npm run test:run     # Single-run (CI mode)
+npm run coverage     # Coverage report (text + html)
+```
 
-### 2. Nainstaluj si appku na telefon
+Tests cover:
 
-1. Otevři v **Chrome na Androidu** URL z kroku 1.
-2. Chrome ti nahoře nabídne: **„Přidat na plochu"** (nebo klikni na tři tečky → **Nainstalovat aplikaci**).
-3. Appka se objeví mezi ostatními jako normální ikona. Otevírá se na celou obrazovku, bez adresního řádku.
-4. **Při prvním otevření povol notifikace** (horní banner „Zapnout připomínky").
+- **Pure helpers** ([src/ukoly/lib](src/ukoly/lib), [src/reflexe/lib](src/reflexe/lib)): formatters, OCR line cleaner, task grouping, Word/text export builders, reminder-time computation, webhook poster, Reflexe payload builder.
+- **Stores** ([ukolyStore.test.js](src/ukoly/store/ukolyStore.test.js), [reflexeStore.test.js](src/reflexe/store/reflexeStore.test.js)): every action, persistence to legacy localStorage keys, hydration tolerance.
+- **Components** (React Testing Library + user-event): CategoryEditor (add/rename/delete cat + subcategories), ActiveCategoryPicker, DefaultMinsPicker, TaskInput, TaskList (grouping, move-cat clears subcat, deletion, stale-subcat tolerance), DictateButton (mocked SpeechRecognition), OcrImport (mocked tesseract.js), ExportActions (Word download + clipboard copy), SliderField, ReflexeForm, SettingsPanel (save/test/clear webhook), NotifBanner (permission flow), ResultPanel + `useSubmitReflection` (offline queue + webhook flow).
 
-### 3. (Volitelné) Naimportuj .ics do Google Kalendáře jako zálohu
+## Legacy data preservation
 
-PWA notifikace jsou spolehlivé dokud je appka „živá" v systému. Pro 100% jistotu doporučuji i kalendářové události:
+The refactor keeps the original localStorage keys so existing users don't lose data:
 
-1. Otevři [calendar.google.com](https://calendar.google.com) na počítači.
-2. Vlevo **ozubené kolo → Nastavení → Import & export → Importovat**.
-3. Vyber soubor **reflexe-kalendar.ics** → zvol kalendář → **Import**.
-4. Google Calendar appka na Androidu ti bude posílat notifikace automaticky.
-
-**9 událostí** (4:00, 6:00, 8:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00) se opakuje po-pá.
-
-## Jak se appka používá
-
-1. **Připomínka zazvoní** v sudou hodinu (4–20 h).
-2. Klikni na notifikaci → otevře se formulář s přednastaveným časem bloku.
-3. Vyplň 8 otázek (slidery + textová pole) – trvá 3 min.
-4. Klikni **Uložit reflexi**:
-   - **S webhook nastavením:** data se odešlou do Google Sheetu → zelené ✓
-   - **Bez webhooku (nebo offline):** JSON se zkopíruje do schránky → vložíš do Claude chatu
-5. Claude pak synchronizuje data do Excelu a Wordu reflexe.
-
-## Tipy
-
-- **Appka funguje offline** – můžeš vyplnit i bez signálu, data zůstávají ve schránce.
-- **Historie všech reflexí** se ukládá lokálně v `localStorage` (nemazej data Chrome pro tuto stránku).
-- **Vypnout připomínky**: v appce klikni na banner → „Vypnout".
-- **Nefunguje kopírování?** JSON je vidět ve formuláři, dá se označit prstem a zkopírovat ručně.
-
-## Troubleshooting
-
-| Problém | Řešení |
+| Key | Schema |
 |---|---|
-| Notifikace nechodí | Nastavení Android → Appky → Reflexe → Notifikace → povolit. Zkus kalendářové události jako zálohu. |
-| „Přidat na plochu" nevidím | Musíš použít **Chrome** na Androidu (ne Samsung Internet ani Firefox). |
-| Appka se neotevře offline | Zapni ji jednou s internetem – service worker si nacachuje potřebné soubory. |
-| Ikona vypadá divně | Zkontroluj, že jsou na GitHub Pages všechny tři `icon-*.png` soubory. |
+| `ukoly_state_v2` | `{ state: { categories, subcategories, tasks, activeCategory, activeSubcat, defaultMins }, version }` |
+| `webhook-url` | Raw URL string |
+| `reflexe-queue` | `[{ data, ts, tries }, ...]` |
+| `reflexe-historie` | `[reflexePayload, ...]` |
+| `reminders-enabled` | `'1'` or `'0'` |
 
-## Alternativní hostování
+The Ukoly store uses Zustand's `persist` middleware (under the same `ukoly_state_v2` key, with a tolerant `merge` that handles the prior 6-fixed-categories shape). The Reflexe store reads/writes the four raw keys directly — no JSON wrapping.
 
-Kromě GitHub Pages fungují i:
-- **Netlify Drop** ([app.netlify.com/drop](https://app.netlify.com/drop)) – jen přetáhneš složku, hotovo.
-- **Vercel** – podobně jednoduché.
-- **Vlastní doména** – nahraj přes FTP na jakýkoli HTTPS hosting.
+## Deploying
 
-PWA **vyžaduje HTTPS** (jinak nefunguje service worker = ani notifikace ani offline).
+Same as before: any static HTTPS host (GitHub Pages, Netlify Drop, Vercel) will work for the built `dist/` directory. The service worker requires HTTPS to be installable as a PWA.
+
+```bash
+npm run build
+# Upload everything in dist/ to your host
+```
+
+For the Google Sheets webhook integration, follow [NAVOD-GOOGLE-SHEET.md](NAVOD-GOOGLE-SHEET.md) (unchanged from the vanilla version).
+
+## How the apps are used (end-user)
+
+1. **Reminder fires** at every even hour 04:00–20:00.
+2. Tap the notification → reflection form opens with the current block time pre-filled.
+3. Fill the 8 questions (sliders + text fields) — about 3 minutes.
+4. **Save reflection:**
+   - With webhook configured: data POSTs straight into your Google Sheet → green ✓.
+   - Without webhook (or offline): JSON copies to clipboard → paste into Claude chat; payload also waits in the offline queue and retries when the browser comes back online.
+5. Open **Úkoly podle kategorií** to capture follow-up tasks by category — text input, voice dictation, or photo OCR — and export to Word / plain text when you need to share them.

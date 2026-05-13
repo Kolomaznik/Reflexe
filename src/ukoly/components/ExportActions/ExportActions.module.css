@@ -1,0 +1,27 @@
+.bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.bar > button {
+  flex: 1 1 200px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+}
+.gold {
+  background: var(--gold);
+  color: #fff;
+}
+.secondary {
+  background: #fff;
+  color: var(--navy);
+  border: 2px solid var(--navy) !important;
+}
+.danger {
+  background: var(--red);
+  color: #fff;
+}

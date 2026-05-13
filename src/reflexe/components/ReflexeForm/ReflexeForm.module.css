@@ -1,0 +1,95 @@
+.question {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.qHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.qNum {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.qTitle {
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 17px;
+  flex: 1;
+}
+.qDesc {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+.textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  background: #FCFBF7;
+}
+.textarea:focus {
+  border-color: var(--gold);
+  background: #fff;
+}
+.percentRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.percentRow label {
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 160px;
+}
+.percentRow input[type='number'] {
+  width: 80px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #FCFBF7;
+}
+.percentRow .unit {
+  color: var(--muted);
+  font-size: 13px;
+}
+.noteLabel {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 10px 0 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.submit {
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  width: 100%;
+}

@@ -1,0 +1,52 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.label {
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 100px;
+}
+.wrap {
+  flex: 1;
+  min-width: 200px;
+}
+.wrap input[type='range'] {
+  width: 100%;
+  accent-color: var(--gold);
+  height: 36px;
+}
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 0;
+  padding: 0 2px;
+}
+.value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.value.low {
+  background: var(--red);
+}
+.value.mid {
+  background: var(--amber);
+  color: var(--navy);
+}
+.value.high {
+  background: var(--green);
+}
